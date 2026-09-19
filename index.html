@@ -1,0 +1,1054 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>自欺欺人时钟</title>
+<meta name="description" content="把时间改成你想看到的样子：自由进位制（19:40 可以显示成 18:100）、12/24 小时制、中文与纯文言时辰、时光倒流与抹零。单文件网页，打开即用。">
+<meta name="theme-color" content="#070a12">
+<meta property="og:title" content="自欺欺人时钟">
+<meta property="og:description" content="把时间改成你想看到的样子：自由进位制（19:40 可以显示成 18:100）、12/24 小时制、中文与纯文言时辰、时光倒流与抹零。单文件网页，打开即用。">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTUiIGZpbGw9IiM1YjhjZmYiLz48Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIxOSIgZmlsbD0iI2VlZjNmZiIvPjxjaXJjbGUgY3g9IjMyIiBjeT0iMzIiIHI9IjE2IiBmaWxsPSIjMGIxMDIwIi8+PHJlY3QgeD0iMzAuNSIgeT0iMTkiIHdpZHRoPSIzIiBoZWlnaHQ9IjE0IiByeD0iMS41IiBmaWxsPSIjOGZiMGZmIi8+PHJlY3QgeD0iMzAuNSIgeT0iMzAuNSIgd2lkdGg9IjEyIiBoZWlnaHQ9IjMiIHJ4PSIxLjUiIGZpbGw9IiNlZWYzZmYiLz48Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIyLjYiIGZpbGw9IiM1YjhjZmYiLz48L3N2Zz4=">
+<style>
+  :root{
+    --bg:#070a12;
+    --bg2:#0d1322;
+    --panel:rgba(255,255,255,.05);
+    --panel-hi:rgba(255,255,255,.09);
+    --line:rgba(255,255,255,.10);
+    --text:#e9eefb;
+    --dim:#8b97b4;
+    --dim2:#5d6883;
+    --acc:#5b8cff;
+    --acc2:#8b5cf6;
+    --warn:#ffb020;
+    --good:#3ddc97;
+    --r:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  html{overflow-x:hidden}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+    color:var(--text);
+    background:
+      radial-gradient(1200px 760px at 50% -18%, #1e2c5e 0%, transparent 60%),
+      radial-gradient(900px 620px at 108% 106%, #35195c 0%, transparent 58%),
+      linear-gradient(180deg,var(--bg2) 0%,var(--bg) 66%);
+    background-attachment:fixed;
+    min-height:100vh;
+    overflow-x:clip;
+  }
+  button{font-family:inherit;font-size:13px;color:var(--text);cursor:pointer;border-radius:10px;
+    border:1px solid var(--line);background:var(--panel);padding:8px 13px;transition:.16s;line-height:1.15}
+  button:hover{background:var(--panel-hi);border-color:rgba(255,255,255,.2)}
+  button:active{transform:scale(.985)}
+  button.primary{background:linear-gradient(135deg,var(--acc),var(--acc2));border-color:transparent;font-weight:600;
+
+    box-shadow:0 6px 18px rgba(91,140,255,.3)}
+
+  /* ================= 布局：整页三段（顶栏 / 正中时间 / 底栏） ================= */
+  .shell{min-height:100vh;display:flex;flex-direction:column;
+    --drawer-w:392px;padding-right:0;transition:padding-right .27s cubic-bezier(.4,0,.2,1)}
+  /* 抽屉打开时把内容让开，时间仍然居中于「未被遮挡」的区域 */
+  body.drawer-open .shell{padding-right:var(--drawer-w)}
+  @media (max-width:760px){
+    body.drawer-open .shell{padding-right:0}
+  }
+
+  /* ---------- 顶栏 ---------- */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    padding:15px 22px;position:sticky;top:0;z-index:20;
+    background:linear-gradient(180deg,rgba(7,10,18,.92),rgba(7,10,18,.62));
+    backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.05)
+  }
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.3px;font-size:14.5px}
+  .brand .logo{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;font-size:16px;
+    background:linear-gradient(140deg,var(--acc),var(--acc2));box-shadow:0 5px 16px rgba(91,140,255,.35)}
+  .brand small{display:block;font-weight:500;font-size:11px;color:var(--dim2);letter-spacing:.2px;margin-top:1px}
+  .topbar-actions{display:flex;gap:8px;align-items:center}
+
+  /* ---------- 正中舞台 ---------- */
+  .stage{
+    flex:1;display:flex;flex-direction:column;align-items:center;
+    padding:22px 20px 26px;text-align:center;position:relative;min-height:0
+  }
+  .stage::before{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(660px 300px at 50% 46%,rgba(91,140,255,.14),transparent 72%)
+  }
+  /* 时间占据全部剩余空间并自居中 —— 这样它就是真正的视觉正中 */
+  .clock-wrap{flex:1;display:flex;align-items:center;justify-content:center;width:100%;min-height:0}
+  .stage-foot{display:flex;flex-direction:column;align-items:center;gap:13px;width:100%}
+
+  /* 时间本体：尽可能大、绝对居中 */
+  .clock{
+    display:flex;align-items:baseline;justify-content:center;flex-wrap:nowrap;
+    line-height:1;position:relative;z-index:1;max-width:100%;
+    font-variant-numeric:tabular-nums;
+    text-shadow:0 4px 40px rgba(91,140,255,.35)
+  }
+  /* 字号由脚本按实际可用宽度量算后写入 --clock-size，位数变化也不会溢出 */
+  .clock .tok{font-weight:800;letter-spacing:-.02em;font-size:var(--clock-size, 120px)}
+  .clock .tok.sep{color:var(--dim);font-weight:600;margin:0 .04em}
+  .clock .tok.suffix{font-size:clamp(15px,2.4vw,26px);font-weight:700;color:var(--acc);
+    align-self:center;margin-left:.5em;border:1px solid rgba(91,140,255,.4);border-radius:999px;
+    padding:.32em .8em;background:rgba(91,140,255,.1);letter-spacing:.06em;white-space:nowrap}
+
+  /* 逐字分组，避免 "18" 与 "100" 粘连 */
+  .numgroup{display:inline-flex;align-items:baseline;max-width:100%;overflow:hidden}
+  .numgroup .dg{display:inline-block;min-width:.62em;text-align:center}
+
+  /* 文言排版 */
+  .clock.classic{flex-wrap:wrap;gap:2px 10px}
+  .clock .ctok{font-weight:800;position:relative;letter-spacing:.01em;
+    font-size:calc(var(--clock-size, 120px) * .52)}
+  .clock .ctok.sep{color:var(--dim2);font-weight:500}
+  .clock .ctok.small{font-size:calc(var(--clock-size, 120px) * .3);font-weight:600;color:var(--dim)}
+  .clock .ctok .gloss{position:absolute;left:50%;transform:translateX(-50%);bottom:-1.5em;
+    font-size:max(11px, calc(var(--clock-size, 120px) * .1));font-weight:500;color:var(--dim2);
+    letter-spacing:.14em;white-space:nowrap}
+  .clock.classic{padding-bottom:1.2em}
+
+  .dateline{font-size:clamp(12px,1.5vw,15px);color:var(--dim);letter-spacing:.16em;position:relative;z-index:1}
+
+  /* 信息条 */
+  .chips{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;position:relative;z-index:1;max-width:760px}
+  .chip{font-size:11.5px;color:var(--dim);border:1px solid var(--line);border-radius:999px;
+    padding:4px 12px;background:rgba(0,0,0,.24);white-space:nowrap}
+  .chip b{color:var(--text);font-weight:600}
+  .chip.warn{color:var(--warn);border-color:rgba(255,176,32,.32);background:rgba(255,176,32,.09)}
+  .chip.good{color:var(--good);border-color:rgba(61,220,151,.3);background:rgba(61,220,151,.08)}
+
+  .soothe{
+    max-width:640px;font-size:13.5px;line-height:1.68;color:#cbd5ec;
+    background:rgba(91,140,255,.08);border:1px solid rgba(91,140,255,.2);
+    border-radius:13px;padding:12px 18px;position:relative;z-index:1
+  }
+  .soothe::before{content:"🐳";margin-right:7px}
+  .soothe em{font-style:normal;color:#9db8ff;font-weight:600}
+
+  /* ---------- 底栏 ---------- */
+  .bottombar{
+    display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;
+    padding:13px 22px;font-size:11.5px;color:var(--dim2);
+    border-top:1px solid rgba(255,255,255,.05);background:rgba(0,0,0,.22)
+  }
+  .bottombar .real{cursor:help;border-bottom:1px dashed var(--dim2);padding-bottom:1px}
+  .bottombar .real b{color:var(--dim);font-variant-numeric:tabular-nums}
+
+  /* ================= 设置抽屉 ================= */
+  .overlay{
+    position:fixed;inset:0;background:rgba(3,5,10,.42);backdrop-filter:blur(2px);
+    opacity:0;visibility:hidden;transition:.24s;z-index:40
+  }
+  .overlay.on{opacity:1;visibility:visible}
+
+  .drawer{
+    position:fixed;top:0;right:0;height:100%;width:392px;max-width:100vw;z-index:50;
+    display:flex;flex-direction:column;
+    background:linear-gradient(180deg,#121a2e,#0b0f1c);
+    border-left:1px solid var(--line);
+    box-shadow:-22px 0 60px rgba(0,0,0,.5);
+    /* 关闭时用 visibility 彻底移出可滚动区域，避免撑宽页面把整页推歪 */
+    transform:translateX(100%);visibility:hidden;
+    transition:transform .27s cubic-bezier(.4,0,.2,1), visibility .27s
+  }
+  .drawer.on{transform:translateX(0);visibility:visible}
+
+  .drawer-head{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:16px 18px;border-bottom:1px solid var(--line);flex-shrink:0
+  }
+  .drawer-head h2{margin:0;font-size:14.5px;font-weight:700;letter-spacing:.3px}
+  .drawer-head p{margin:3px 0 0;font-size:11px;color:var(--dim2)}
+  .close-x{width:32px;height:32px;padding:0;display:grid;place-items:center;font-size:17px;border-radius:9px}
+
+  .drawer-body{flex:1;overflow-y:auto;padding:6px 0 20px;overscroll-behavior:contain}
+  .drawer-body::-webkit-scrollbar{width:9px}
+  .drawer-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.13);border-radius:9px;border:2px solid transparent;background-clip:content-box}
+
+  /* 折叠分区 */
+  .sec{border-bottom:1px solid rgba(255,255,255,.055)}
+  .sec-head{
+    width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:transparent;border:0;border-radius:0;padding:13px 18px;
+    font-size:12.5px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--dim)
+  }
+  .sec-head:hover{background:rgba(255,255,255,.045)}
+  .sec-head .caret{transition:.2s;font-size:11px;color:var(--dim2)}
+  .sec.open .sec-head .caret{transform:rotate(90deg)}
+  .sec-body{padding:0 18px 16px;display:none}
+  .sec.open .sec-body{display:block}
+  .sec-body .hint{margin-top:11px;font-size:11.5px;color:var(--dim2);line-height:1.62}
+
+  .opts{display:flex;flex-wrap:wrap;gap:7px}
+  .opts + .opts{margin-top:8px}
+  .field{font-size:12.5px;font-weight:600;color:var(--text);margin:2px 0 9px}
+  .opt{
+    border:1px solid var(--line);background:rgba(0,0,0,.26);border-radius:10px;
+    padding:8px 11px;font-size:12.5px;color:var(--text);cursor:pointer;transition:.16s;text-align:left
+  }
+  .opt:hover{background:var(--panel-hi);border-color:rgba(255,255,255,.22)}
+  .opt.on{background:linear-gradient(135deg,rgba(91,140,255,.3),rgba(139,92,246,.25));
+    border-color:rgba(91,140,255,.6);box-shadow:0 0 0 1px rgba(91,140,255,.2)}
+  .opt .k{display:block;font-weight:600}
+  .opt .d{display:block;font-size:10.5px;color:var(--dim);margin-top:3px}
+
+  .row{display:flex;align-items:center;gap:11px;margin-top:11px}
+  .row:first-child{margin-top:0}
+  .row label{font-size:12.5px;color:var(--dim);min-width:62px;flex-shrink:0}
+  input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:5px;border-radius:99px;
+    background:linear-gradient(90deg,var(--acc),var(--acc2));outline:none;min-width:80px}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+    background:#fff;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+  input[type=range]::-moz-range-thumb{width:16px;height:16px;border:0;border-radius:50%;background:#fff;cursor:pointer}
+  .val{font-size:12.5px;color:var(--text);min-width:78px;text-align:right;
+    font-variant-numeric:tabular-nums;font-weight:600}
+
+  .rewind{width:100%;display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px}
+  .rewind.on{background:linear-gradient(135deg,rgba(255,176,32,.3),rgba(255,90,120,.26));
+    border-color:rgba(255,176,32,.6);font-weight:700}
+
+  .drawer-foot{padding:14px 18px;border-top:1px solid var(--line);flex-shrink:0;
+    display:flex;gap:9px}
+  .drawer-foot button{flex:1;justify-content:center;display:flex}
+
+  /* ---------- 窄屏 ---------- */
+  @media (max-width:760px){
+    .topbar{padding:11px 12px;gap:8px}
+    .brand{font-size:13.5px;min-width:0}
+    .brand small{display:none}
+    .brand > div:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .topbar-actions{gap:6px;flex-shrink:0}
+    .topbar-actions button{padding:7px 10px;font-size:12px}
+
+    .stage{padding:14px 14px 18px;min-width:0}
+    .stage-foot{gap:10px}
+    .clock{max-width:100%}
+    .dateline{letter-spacing:.08em}
+    .chips{max-width:100%;gap:6px}
+    .chip{font-size:11px;padding:4px 10px;white-space:normal}
+    .soothe{font-size:12.5px;padding:11px 14px;max-width:100%;overflow-wrap:anywhere}
+    .bottombar{padding:11px 14px;gap:8px;flex-direction:column;align-items:center}
+    .drawer{width:100%;max-width:100%}
+  }
+  @media (max-height:560px){
+    .stage-foot{gap:9px}
+    .soothe{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ================= 顶栏 ================= -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">🕰️</div>
+      <div>自欺欺人时钟
+        <small>把时间改成你想看到的样子</small>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button id="btnReal" title="立刻回到真实时间显示">↺ 回到真实</button>
+      <button class="primary" id="btnMenu" aria-expanded="false" aria-controls="drawer">⚙ 设置</button>
+    </div>
+  </header>
+
+  <!-- ================= 正中时间 ================= -->
+  <main class="stage">
+    <div class="clock-wrap">
+      <div class="clock" id="clock" aria-live="off"></div>
+    </div>
+    <div class="stage-foot">
+      <div class="dateline" id="dateLine"></div>
+      <div class="chips" id="meta"></div>
+      <div class="soothe" id="soothe"></div>
+    </div>
+  </main>
+
+  <!-- ================= 底栏：只留真实时间参照 ================= -->
+  <footer class="bottombar">
+    <span>真实时间：<span class="real" id="realClock" title="别看了，假的更好">……</span></span>
+    <span id="fps">—</span>
+  </footer>
+
+</div>
+
+<!-- ================= 设置抽屉 ================= -->
+<div class="overlay" id="overlay"></div>
+
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <div>
+      <h2>设置</h2>
+      <p>改动即时生效，自动保存到本机</p>
+    </div>
+    <button class="close-x" id="btnClose" title="关闭（Esc）">✕</button>
+  </div>
+
+  <div class="drawer-body">
+
+    <section class="sec" data-key="mode">
+      <button class="sec-head" type="button">进位模式 <span class="caret">▶</span></button>
+      <div class="sec-body">
+        <div class="opts" id="grpMode"></div>
+        <div class="hint" id="modeHint"></div>
+      </div>
+    </section>
+
+    <section class="sec" data-key="carry">
+      <button class="sec-head" type="button">借位幅度 <span class="caret">▶</span></button>
+      <div class="sec-body">
+        <div class="field" id="baseScaleNote">往回借几个小时</div>
+        <div class="opts" id="grpCarry"></div>
+        <div class="hint" id="baseHint"></div>
+      </div>
+    </section>
+
+    <section class="sec" data-key="hour">
+      <button class="sec-head" type="button">时段制 <span class="caret">▶</span></button>
+      <div class="sec-body">
+        <div class="opts" id="grpHour"></div>
+        <div class="hint">24 小时制即原样；12 小时制会折叠出「上午 / 下午」，数字看着更小。</div>
+      </div>
+    </section>
+
+    <section class="sec" data-key="num">
+      <button class="sec-head" type="button">记数文字 <span class="caret">▶</span></button>
+      <div class="sec-body">
+        <div class="opts" id="grpNum"></div>
+        <div class="hint">阿拉伯数字 → 中文小写 → 纯文言。文言模式改用十二时辰 + 刻，并给时辰配上「夜半 / 鸡鸣 / 晡时」这类古称。</div>
+      </div>
+    </section>
+
+    <section class="sec" data-key="anchor">
+      <button class="sec-head" type="button">时间锚点 <span class="caret">▶</span></button>
+      <div class="sec-body">
+        <div class="opts" id="grpAnchor"></div>
+        <div class="hint" id="anchorHint"></div>
+      </div>
+    </section>
+
+    <section class="sec" data-key="cheat">
+      <button class="sec-head" type="button">自欺欺人参数 <span class="caret">▶</span></button>
+      <div class="sec-body">
+        <button class="rewind" id="btnRewind">⏪ 开启「还早」模式</button>
+        <div class="row" style="margin-top:12px">
+          <label>时光倒流</label>
+          <input type="range" id="rngOffset" min="0" max="240" step="1" value="0">
+          <span class="val" id="valOffset">0 分钟</span>
+        </div>
+        <div class="row">
+          <label>秒数抹零</label>
+          <span class="opts" style="gap:6px">
+            <button class="opt" data-round="0" style="padding:6px 10px;font-size:11.5px">精确</button>
+            <button class="opt" data-round="5" style="padding:6px 10px;font-size:11.5px">抹到 5 分</button>
+            <button class="opt" data-round="15" style="padding:6px 10px;font-size:11.5px">抹到一刻</button>
+          </span>
+        </div>
+        <div class="hint">「时光倒流」最多把表拨慢 <b>4 小时</b>，日期会跟着回退。抹零永远往下抹，绝不往前凑。</div>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="drawer-foot">
+    <button id="btnReset">↺ 恢复默认</button>
+    <button class="primary" id="btnHelp">? 说明</button>
+  </div>
+</aside>
+
+<script>
+/* ============================================================================
+   自欺欺人时钟 — 引擎实现
+   ========================================================================== */
+
+/* ---------------- 常量 ---------------- */
+
+const CN_DIGIT  = ['〇','一','二','三','四','五','六','七','八','九'];
+const CN_FORMAL = ['〇','壹','貳','參','肆','伍','陸','柒','捌','玖'];
+
+const ZODIAC = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+const ZODIAC_ALIAS = { 子:'夜半', 丑:'鸡鸣', 寅:'平旦', 卯:'日出', 辰:'食时', 巳:'隅中',
+                       午:'日中', 未:'日昳', 申:'晡时', 酉:'日入', 戌:'黄昏', 亥:'人定' };
+const SHI_KE = ['初刻','一刻','二刻','三刻','四刻','五刻','六刻','七刻'];
+
+const WEEK_CN = ['日','一','二','三','四','五','六'];
+const OLD_DAY  = ['初一','初二','初三','初四','初五','初六','初七','初八','初九','初十',
+                  '十一','十二','十三','十四','十五','十六','十七','十八','十九','二十',
+                  '廿一','廿二','廿三','廿四','廿五','廿六','廿七','廿八','廿九','三十'];
+const OLD_MON  = ['正月','二月','三月','四月','五月','六月','七月','八月','九月','十月','冬月','腊月'];
+const OLD_YEAR  = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+const OLD_BRANCH= ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+
+/* ---------------- 选项定义 ---------------- */
+
+// 两套进位引擎
+const MODES = [
+  { id:'normalized',  name:'甲 · 规范进位', desc:'19:40 → 11:80 · 严格更早' },
+  { id:'digitborrow', name:'乙 · 逐位借位', desc:'19:40 → 18:100 · 忠实原例' }
+];
+
+// 乙模式的「借位幅度」k：往回借几个小时。k=1 时正好复现 19:40 → 18:100。
+const CARRY_PRESETS = [
+  { id:'k0', name:'不借位',    desc:'19:40 → 19:40（诚实）' },
+  { id:'k1', name:'借 1 小时', desc:'19:40 → 18:100 ← 你的原例' },
+  { id:'k2', name:'借 2 小时', desc:'19:40 → 17:160' },
+  { id:'k3', name:'借 3 小时', desc:'19:40 → 16:220' },
+  { id:'k4', name:'借 4 小时', desc:'19:40 → 15:280' }
+];
+
+const HOUR_MODES = [
+  { id:'h24', name:'24 小时制', desc:'00:00 – 23:59' },
+  { id:'h12', name:'12 小时制', desc:'上午 / 下午' }
+];
+
+const NUM_SYSTEMS = [
+  { id:'arabic',  name:'阿拉伯数字', desc:'18:100' },
+  { id:'chinese', name:'中文小写',   desc:'一八 一〇〇' },
+  { id:'classic', name:'纯文言',     desc:'戌初二刻 · 黄昏' }
+];
+
+const ANCHORS = [
+  { id:'real',      name:'真实现在',   desc:'诚实模式（不推荐）' },
+  { id:'dilate',    name:'时间膨胀',   desc:'套用上面的进位引擎' },
+  { id:'hour',      name:'本小时整点', desc:'永远「才刚过整点」' },
+  { id:'safe',      name:'就低不就高', desc:'分钟抹到 5 的倍数' },
+  { id:'yesterday', name:'永远昨天',   desc:'日期定格在昨天' },
+  { id:'newyear',   name:'永远新年',   desc:'日期定格 1 月 1 日' }
+];
+
+/* ---------------- 状态 ---------------- */
+
+const STORE_KEY = 'dsh.selfdeceive.clock.v3';
+
+const DEFAULT_STATE = {
+  mode:'digitborrow', carry:1, hour:'h24',
+  num:'arabic', offset:0, round:0, rewind:false, anchor:'dilate'
+};
+
+let state = load();
+
+function load(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(!raw) return { ...DEFAULT_STATE };
+    return { ...DEFAULT_STATE, ...JSON.parse(raw) };
+  }catch(e){ return { ...DEFAULT_STATE }; }
+}
+
+function save(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){}
+}
+
+/* ---------------- 数值 / 文字工具 ---------------- */
+
+const pad2 = n => String(n).padStart(2, '0');
+const pad3 = n => String(n).padStart(3, '0');
+
+// 中文小写数词（整体读法）：25 → 二十五，100 → 一百
+function cnNumber(n){
+  n = Math.floor(Math.abs(n));
+  if(n < 10) return CN_DIGIT[n];
+  if(n < 100){
+    const t = Math.floor(n / 10), o = n % 10;
+    return (t === 1 ? '十' : CN_DIGIT[t] + '十') + (o ? CN_DIGIT[o] : '');
+  }
+  const h = Math.floor(n / 100), rest = n % 100;
+  let s = CN_DIGIT[h] + '百';
+  if(rest === 0) return s;
+  if(rest < 10) return s + '〇' + CN_DIGIT[rest];
+  return s + cnNumber(rest);
+}
+
+// 逐位转中文小写（保留 〇 占位）
+const cnDigits = s => String(s).split('').map(c => (c >= '0' && c <= '9') ? CN_DIGIT[+c] : c).join('');
+// 逐位转中文大写（文言用）
+const cnFormalDigits = s => String(s).split('').map(c => (c >= '0' && c <= '9') ? CN_FORMAL[+c] : c).join('');
+
+// 文言年份：干支 + 年号
+function classicYear(y){
+  const off = ((y - 4) % 60 + 60) % 60;
+  const ganzhi = OLD_YEAR[off % 10] + OLD_BRANCH[off % 12];
+  if(y >= 1949) return '公元' + cnDigits(String(y)) + '年' + ganzhi;
+  if(y >= 1912) return '民国' + cnDigits(String(y - 1911)) + '年' + ganzhi;
+  return ganzhi + '年';
+}
+
+/* ---------------- 两套进位引擎 ---------------- */
+
+// 两套进位引擎。carry 在两套里的含义不同：
+//   甲 normalized  —— 忽略 carry，真实分钟按每 100 记 1（标准线性化）
+//                     19:40(1180) → 11:80 ；hi*100+lo == 真实分钟
+//   乙 digitborrow —— carry = 借位幅度 k（往回借几个小时）
+//                     19:40(1180)、k=1 → 18:100 ；hi*60+lo == 真实分钟
+// 两套都满足：显示读起来 ≤ 真实时间、不重不漏、单调不回头。
+//
+// 返回 { hi, lo, odd }：odd 表示该显示值读不成正常钟点（分或时越界）
+function encodeTime(periodMin, mode, carry){
+  periodMin = Math.max(0, Math.floor(Number(periodMin) || 0));
+  // 借位幅度：最多借到 0 点（借位不能超过真实小时数）
+  let k = Math.floor(Number(carry));
+  if(!isFinite(k) || k < 0) k = 0;
+  k = Math.min(k, Math.floor(periodMin / 60));
+
+  if(mode === 'digitborrow'){
+    // 乙 · 逐位借位：把「1 小时 = 60 分钟」借成「1 小时 = 100 分钟」的读法。
+    // 时钟走到 19 点还差 40 分才满一小时 —— 前面的 18 点之后已经攒了 100 分钟，于是 18:100。
+    // 借得越深（k 越大），指针回退的小时数越多，那一格攒的分钟也越多。
+    // 不变式：hi*60 + lo == periodMin（总时长一秒不差，只是读法变了）
+    //         因此恒有 显示读起来 ≤ 真实时间，且不重不漏、单调不回头。
+    const hi = Math.floor(periodMin / 60) - k;
+    const lo = periodMin - hi * 60;
+    return { hi, lo, odd: lo > 59 || hi > 23 };
+  }
+
+  // 甲 · 规范进位：真实分钟按每 100 记 1（标准线性化）
+  //   不变式：hi*100 + lo == periodMin
+  const hi = Math.floor(periodMin / 100);
+  const lo = periodMin % 100;
+  return { hi, lo, odd: lo > 59 || hi > 23 };
+}
+
+/* ---------------- 自欺欺人层 ---------------- */
+
+// 返回 { d(用于显示日期), sec(当日秒数) }
+function resolve(now){
+  const d = new Date(now);
+  const baseSec = d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
+
+  if(state.anchor === 'yesterday' || state.anchor === 'newyear'){
+    if(state.anchor === 'yesterday') d.setDate(d.getDate() - 1);
+    else { d.setMonth(0); d.setDate(1); }
+    return { d, sec: baseSec };
+  }
+
+  let sec = baseSec - state.offset * 60;
+
+  if(state.anchor === 'hour') sec = Math.floor(sec / 3600) * 3600;
+  if(state.anchor === 'safe' && state.round > 0){
+    const step = Math.max(1, state.round * 60);
+    sec = Math.floor(sec / step) * step;
+  }
+  if(state.rewind) sec = Math.floor(sec / 60) * 60;
+
+  if(sec < 0 || sec >= 86400){
+    const shifted = new Date(d.getTime() + (sec - baseSec) * 1000);
+    d.setFullYear(shifted.getFullYear(), shifted.getMonth(), shifted.getDate());
+    sec = ((sec % 86400) + 86400) % 86400;
+  }
+  return { d, sec };
+}
+
+/* ---------------- 显示值计算 ---------------- */
+
+// 基准时段（整天 / 半天）内的真实分钟数
+function trueMinutes(sec){
+  const within = state.hour === 'h12' ? (sec % 43200) : sec;
+  return Math.floor(within / 60);
+}
+
+// 给定当日秒数，算出要显示的 { hi, lo, odd }（字符串）
+function displayValues(sec){
+  const periodMin = trueMinutes(sec);
+  let r = encodeTime(periodMin, state.mode, state.carry);
+
+  // 12 小时制：先按整天进位，再把结果折到半天 ——
+  // 否则「分钟先取模」会算出一个毫不相干的小时（19:40 会变成 4:060）。
+  if(state.hour === 'h12'){
+    const MIN_PER_HALF = 12 * 60;
+    const total = (state.mode === 'digitborrow')
+      ? r.hi * 60 + r.lo      // 乙：分钟位不是 100 进制，用 60 还原
+      : r.hi * 100 + r.lo;    // 甲：分钟位是 100 进制
+    const MIN_PER_HOUR = (state.mode === 'digitborrow') ? 60 : 100;
+    const folded = ((total % MIN_PER_HALF) + MIN_PER_HALF) % MIN_PER_HALF;
+    r = { hi: Math.floor(folded / MIN_PER_HOUR), lo: folded % MIN_PER_HOUR, odd: true };
+  }
+
+  const hi = String(r.hi);
+  // 乙的分钟位会出现 100/160 这种「三位数」；不足两位补零，多于两位自然展开
+  const lo = state.mode === 'digitborrow' ? pad2(r.lo) : pad3(r.lo);
+  return { hi, lo, odd: r.odd, borrow: state.mode === 'digitborrow' };
+}
+
+// 该显示值读回真实分钟数（仅甲模式有意义：甲恒 ≤ 真实值）
+function shownMinutes(hi, lo){
+  return Number(hi) * 100 + Number(lo);
+}
+
+
+/* ---------------- 渲染 ---------------- */
+
+const el = id => document.getElementById(id);
+
+function enc(raw){
+  if(state.num === 'chinese') return cnDigits(raw);
+  if(state.num === 'classic') return cnFormalDigits(raw);
+  return raw;
+}
+
+// 数字串逐字包一层，加字距
+function numGroup(text){
+  const span = document.createElement('span');
+  span.className = 'numgroup tok';
+  for(const ch of String(text)){
+    const c = document.createElement('span');
+    c.className = 'dg';
+    c.textContent = ch;
+    span.appendChild(c);
+  }
+  return span;
+}
+
+function render(now){
+  const { d, sec } = resolve(now);
+  const isClassic = state.num === 'classic';
+  const clock = el('clock');
+  clock.classList.toggle('classic', isClassic);
+  clock.innerHTML = '';
+
+  const extra = [];
+
+  if(isClassic){
+    /* ---------- 文言：十二时辰 + 刻 ---------- */
+    const hour = Math.floor(sec / 3600);
+    const min  = Math.floor(sec / 60) % 60;
+    const zi     = Math.floor(((hour - 23 + 24) % 24) / 2);
+    const within = ((hour - 23 + 24) % 24) % 2;
+    const ke     = within * 4 + Math.min(3, Math.floor(min / 15));
+    const z      = ZODIAC[zi];
+
+    const ziEl = document.createElement('span');
+    ziEl.className = 'ctok';
+    ziEl.textContent = z + '时';
+    const gloss = document.createElement('span');
+    gloss.className = 'gloss';
+    gloss.textContent = ZODIAC_ALIAS[z];
+    ziEl.appendChild(gloss);
+
+    const sep1 = document.createElement('span'); sep1.className = 'ctok sep'; sep1.textContent = '·';
+    const keEl = document.createElement('span'); keEl.className = 'ctok';     keEl.textContent = SHI_KE[ke];
+    const sep2 = document.createElement('span'); sep2.className = 'ctok sep'; sep2.textContent = '·';
+    const xiEl = document.createElement('span'); xiEl.className = 'ctok small';
+    xiEl.textContent = cnFormalDigits(String(now.getSeconds())) + '息';
+
+    clock.appendChild(ziEl); clock.appendChild(sep1);
+    clock.appendChild(keEl); clock.appendChild(sep2);
+    clock.appendChild(xiEl);
+
+    if(state.hour === 'h12'){
+      const sf = document.createElement('span');
+      sf.className = 'tok suffix';
+      sf.textContent = hour < 12 ? '午前' : '午后';
+      clock.appendChild(sf);
+    }
+
+    renderMeta(sec, extra);
+    renderDateLine(`${OLD_MON[d.getMonth()]}${OLD_DAY[d.getDate() - 1]} · ${classicYear(d.getFullYear())}`);
+    el('soothe').innerHTML = sootheText(sec, d);
+    fitClock();
+    return;
+  }
+
+  /* ---------- 数字（甲 / 乙） ---------- */
+  const { hi, lo, odd, borrow } = displayValues(sec);
+  const isH12 = state.hour === 'h12';
+
+  clock.appendChild(numGroup(enc(hi)));
+  const sepEl = document.createElement('span');
+  sepEl.className = 'tok sep';
+  // 乙模式的分钟位不是真的「分钟」（那一格按 100 计），用中点分隔避免被读成普通钟点
+  sepEl.textContent = borrow ? '·' : ':';
+  clock.appendChild(sepEl);
+  clock.appendChild(numGroup(enc(lo)));
+
+  if(isH12){
+    const sf = document.createElement('span');
+    sf.className = 'tok suffix';
+    sf.textContent = Math.floor(sec / 43200) === 0 ? '上午' : '下午';
+    clock.appendChild(sf);
+  }
+
+  // 自检：显示值读不成正常钟点时如实提示
+  if(odd){
+    extra.push(borrow
+      ? '分钟位按 100 计，超过 59 是正常的'
+      : '此刻分/时越界 · 不是正常钟点读法');
+  }
+
+  renderMeta(sec, extra);
+  renderDateLine(`${d.getMonth() + 1} 月 ${d.getDate()} 日 · 周${WEEK_CN[d.getDay()]}`);
+  el('soothe').innerHTML = sootheText(sec, d);
+  fitClock();
+}
+
+function renderDateLine(text){
+  let line = el('dateLine');
+  if(!line){
+    line = document.createElement('div');
+    line.className = 'dateline';
+    line.id = 'dateLine';
+    el('soothe').parentNode.insertBefore(line, el('soothe'));
+  }
+  line.textContent = text;
+}
+
+function renderMeta(sec, extra){
+  const meta = el('meta');
+  meta.innerHTML = '';
+  const add = (html, cls) => {
+    const c = document.createElement('span');
+    c.className = 'chip' + (cls ? ' ' + cls : '');
+    c.innerHTML = html;
+    meta.appendChild(c);
+  };
+
+  // 最要紧的一条：现在显示的到底是不是真实时间
+  const isReal = state.anchor === 'real' && state.offset === 0
+              && state.round === 0 && !state.rewind
+              && state.mode === 'digitborrow' && state.carry === 0
+              && state.hour === 'h24';
+  if(isReal){
+    add('与真实时间一致', 'good');
+  }else{
+    const parts = [];
+    if(state.anchor === 'dilate' && state.mode === 'digitborrow' && state.carry > 0)
+      parts.push(`借位 ${state.carry} 小时`);
+    if(state.anchor === 'dilate' && state.mode === 'normalized') parts.push('规范进位');
+    if(state.anchor !== 'real' && state.anchor !== 'dilate'){
+      const a = ANCHORS.find(x => x.id === state.anchor);
+      if(a) parts.push(a.name);
+    }
+    if(state.offset > 0) parts.push(`倒流 ${state.offset} 分`);
+    if(state.round > 0)  parts.push(`抹零 ${state.round} 分`);
+    if(state.rewind)     parts.push('还早模式');
+    // 只有真的偏离了真实时间才警示
+    if(parts.length) add(`已改动：${parts.join(' · ')}`, 'warn');
+    else             add('与真实时间一致', 'good');
+  }
+
+  add(`引擎 <b>${state.mode === 'normalized' ? '甲 · 规范进位' : '乙 · 逐位借位'}</b>`);
+  if(state.mode === 'digitborrow') add(`借位 <b>${state.carry} 小时</b>`);
+  add(`<b>${state.hour === 'h12' ? '12 小时制' : '24 小时制'}</b>`);
+  for(const e of extra) add(e, 'warn');
+}
+
+/* ---------------- 自我安慰话术 ---------------- */
+
+function sootheText(sec, d){
+  const h = Math.floor(sec / 3600);
+
+  if(state.anchor === 'yesterday')
+    return '现在还是 <em>昨天</em>。昨天的债不算今天的债 —— 你甚至还没开始今天，急什么。';
+  if(state.anchor === 'newyear')
+    return '现在是 <em>新年第一天</em>。新的一年才刚开始，一切都还来得及（大概）。';
+  if(state.anchor === 'hour')
+    return `才刚过 <em>${h} 点</em>，整点刚敲过，现在动手还有什么来不及的。`;
+  if(state.anchor === 'safe')
+    return '已经抹到 5 的倍数了。抹掉的那几分钟属于误差，误差不计入人生。';
+  if(state.offset > 0 && state.anchor === 'dilate')
+    return `表已经拨慢 <em>${state.offset} 分钟</em>。你偷回来的这些时间，是纯粹的净赚。`;
+  if(state.anchor === 'dilate'){
+    if(state.mode === 'digitborrow')
+      return `表针往回借了 <em>${state.carry} 小时</em>，而那一格记作 100 分钟 —— 你并没有损失时间，只是换了个读法。`;
+    return '按「每 100 分钟记 1」的规范进位算，一天被撑成 <em>36 小时</em>。既然单位都变了，那你确实还早。';
+  }
+
+  const pool = [
+    '时间只是人类的<em>集体约定</em>。既然是约定，就可以改。',
+    '你看到的每一秒，都已经被你<em>允许</em>看到了。',
+    '不早了，但只要没人提醒你，就还算早。',
+    '这个页面里唯一诚实的部分，是它的名字。'
+  ];
+  return pool[(d.getDate() + Math.floor(sec / 60)) % pool.length];
+}
+
+/* ---------------- UI ---------------- */
+
+function buildOpts(containerId, items, currentId, onPick){
+  const box = el(containerId);
+  if(!box) return;
+  box.innerHTML = '';
+  for(const it of items){
+    const b = document.createElement('button');
+    b.className = 'opt' + (it.id === currentId ? ' on' : '');
+    const k = document.createElement('span'); k.className = 'k'; k.textContent = it.name;
+    const dd = document.createElement('span'); dd.className = 'd'; dd.textContent = it.desc;
+    b.appendChild(k); b.appendChild(dd);
+    b.onclick = () => onPick(it.id);
+    box.appendChild(b);
+  }
+}
+
+function commit(){
+  save();
+  renderControls();
+  render(new Date());
+}
+
+// 演示换算：给定当日分钟数 → 当前设置的显示串
+function demoTimes(minutesOfDay){
+  const isH12 = state.hour === 'h12';
+  const mins = isH12 ? minutesOfDay % 720 : minutesOfDay;
+  const r = encodeTime(mins, state.mode, state.carry);
+  return r.hi + (state.mode === 'digitborrow' ? '·' : ':')
+       + (state.mode === 'digitborrow' ? pad2(r.lo) : pad3(r.lo));
+}
+
+function renderControls(){
+  buildOpts('grpMode',  MODES,         state.mode,   id => { state.mode = id;   commit(); });
+  buildOpts('grpCarry', CARRY_PRESETS, 'k' + state.carry, id => {
+    state.carry = Number(String(id).slice(1));
+    commit();
+  });
+  buildOpts('grpHour',  HOUR_MODES,    state.hour,   id => { state.hour = id;   commit(); });
+  buildOpts('grpNum',   NUM_SYSTEMS,   state.num,    id => { state.num = id;    commit(); });
+  buildOpts('grpAnchor',ANCHORS,       state.anchor, id => { state.anchor = id; commit(); });
+
+  // 模式说明
+  el('modeHint').innerHTML = state.mode === 'normalized'
+    ? '<b>甲 · 规范进位</b>：真实分钟按「每 100 记 1」规范化，19:40 → <b>11:80</b>。'
+      + '<b>严格单调、不重不漏</b>，显示读起来永远不晚于真实时间 —— 稳，但数字偏小。'
+    : '<b>乙 · 逐位借位</b>：把「1 小时 = 60 分钟」借成「1 小时 = 100 分钟」的读法，'
+      + '借 <b>' + state.carry + '</b> 小时 → 19:40 显示为 <b>' + demoTimes(19 * 60 + 40) + '</b>。'
+      + '总时长一秒不差（hi×60 + lo = 真实分钟），所以同样不重不漏、也不会晚于真实时间。';
+
+  const nowD = new Date();
+  const nowMin = nowD.getHours() * 60 + nowD.getMinutes();
+  const ex = demoTimes(19 * 60 + 40);
+  const nw = demoTimes(nowMin);
+
+  el('baseScaleNote').textContent = state.mode === 'digitborrow'
+    ? `往回借 ${state.carry} 小时`
+    : '每 100 分钟记 1';
+  el('baseHint').innerHTML =
+    `以 <b>19:40</b> 为例 → <b>${ex}</b>；现在（${pad2(nowD.getHours())}:${pad2(nowD.getMinutes())}）→ <b>${nw}</b>。`
+    + (state.mode === 'digitborrow'
+        ? ' 分钟位超过 59 是正常的 —— 那一格按 100 分钟记。'
+        : ' 一天 36 小时封顶，所以显示时针永远超不过 14。');
+
+  // 锚点
+  const a = ANCHORS.find(x => x.id === state.anchor);
+  el('anchorHint').innerHTML = a
+    ? `<b>${a.name}</b>：${a.desc}。` + (a.id === 'dilate'
+        ? '只有选它才会套用进位引擎；选「真实现在」时进位设置不生效。' : '')
+    : '';
+
+  // 还早按钮
+  const rw = el('btnRewind');
+  rw.classList.toggle('on', state.rewind);
+  rw.textContent = state.rewind ? '⏪「还早」模式已开启' : '⏪ 开启「还早」模式';
+
+  // 滑块 / 抹零
+  el('rngOffset').value = state.offset;
+  el('valOffset').textContent = state.offset === 0 ? '0 分钟' : `− ${state.offset} 分钟`;
+  document.querySelectorAll('[data-round]').forEach(b => {
+    b.classList.toggle('on', Number(b.dataset.round) === state.round);
+  });
+}
+
+/* ---------------- 设置抽屉 / 折叠分区 ---------------- */
+
+const drawer  = el('drawer');
+const overlay = el('overlay');
+const SEC_KEY = 'dsh.selfdeceive.clock.sections';
+
+function loadSections(){
+  try{ return JSON.parse(localStorage.getItem(SEC_KEY)) || {}; }catch(e){ return {}; }
+}
+function saveSections(obj){
+  try{ localStorage.setItem(SEC_KEY, JSON.stringify(obj)); }catch(e){}
+}
+
+const secState = loadSections();
+// 默认：前两组展开，其余收起 —— 一进来看得懂，又不至于一屏全是按钮
+const DEFAULT_OPEN = { mode:true, carry:true, hour:false, num:false, anchor:false, cheat:false };
+document.querySelectorAll('.sec').forEach(sec => {
+  const key = sec.dataset.key;
+  const open = secState[key] !== undefined ? !!secState[key] : !!DEFAULT_OPEN[key];
+  sec.classList.toggle('open', open);
+  const head = sec.querySelector('.sec-head');
+  if(head) head.onclick = () => {
+    const on = !sec.classList.contains('open');
+    sec.classList.toggle('open', on);
+    secState[key] = on;
+    saveSections(secState);
+  };
+});
+
+function setDrawer(open){
+  drawer.classList.toggle('on', open);
+  overlay.classList.toggle('on', open);
+  drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
+  el('btnMenu').setAttribute('aria-expanded', open ? 'true' : 'false');
+  document.body.classList.toggle('drawer-open', open);
+  document.body.style.overflow = '';
+  fitClock();
+}
+
+el('btnMenu').onclick   = () => setDrawer(!drawer.classList.contains('on'));
+el('btnClose').onclick  = () => setDrawer(false);
+overlay.onclick         = () => setDrawer(false);
+document.addEventListener('keydown', e => { if(e.key === 'Escape') setDrawer(false); });
+
+/* 一键回到真实时间显示 */
+el('btnReal').onclick = () => {
+  Object.assign(state, { anchor:'real', offset:0, round:0, rewind:false,
+                         mode:'digitborrow', carry:0, num:'arabic', hour:'h24' });
+  commit();
+};
+
+/* ---------------- 让时间按实际可用宽度自适应字号 ---------------- */
+
+// 用 canvas measureText 精确量文字宽度 —— DOM 盒子不含溢出墨迹，量不准
+let _measureCtx = null;
+function textWidthEm(text, classic){
+  try{
+    if(!_measureCtx) _measureCtx = document.createElement('canvas').getContext('2d');
+    const font = classic
+      ? '800 100px -apple-system,"Segoe UI","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif'
+      : '800 100px -apple-system,"Segoe UI","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif';
+    _measureCtx.font = font;
+    return _measureCtx.measureText(text).width / 100;   // 每 1px 字号占多少 px
+  }catch(e){
+    return String(text||'').length * 0.62;              // 兜底
+  }
+}
+
+function fitClock(){
+  const clock = el('clock');
+  if(!clock) return;
+  const host = clock.parentElement || document.body;
+  const D = document.documentElement.style;
+
+  // 把时、分、后缀分开量，后缀字号是 .26em、还有内边距
+  // 注意：有子元素时只取子元素文本，否则会把父节点的文本重复算一遍
+  let main = '', suffix = '';
+  for(const p of Array.from(clock.children || [])){
+    const cls = String(p.className || '');
+    if(cls.includes('suffix')){ suffix += (p.textContent || ''); continue; }
+    if(p.children && p.children.length){
+      for(const q of Array.from(p.children)) main += (q.textContent || '');
+    }else{
+      main += (p.textContent || '');
+    }
+  }
+  if(!main) main = '0·00';
+
+  const classic = clock.classList.contains('classic');
+  const em = textWidthEm(main, classic) + (suffix ? textWidthEm(suffix, false) * 0.30 : 0);
+  const availW = Math.max(150, (host.clientWidth || window.innerWidth || 800) - 26);
+  let size = availW / Math.max(0.5, em);
+
+  const cap = Math.min(230, Math.max(30, (host.clientHeight || 800) * 0.42));
+  size = Math.max(20, Math.min(size, cap));
+  if(classic) size = Math.min(size, 110);
+  // 文言那行字本身就是小一号的排版，别让它缩得太不起眼
+  if(classic) size = Math.max(size, Math.min(110, cap * 0.32));
+
+  D.setProperty('--clock-size', Math.round(size) + 'px');
+
+  // 兜底：万一还是溢出，按实测比例再收一次
+  const b = clock.getBoundingClientRect();
+  if(b.width > availW + 1){
+    size = size * (availW / b.width) * 0.97;
+    D.setProperty('--clock-size', Math.max(20, Math.round(size)) + 'px');
+  }
+}
+
+if(typeof ResizeObserver === 'function'){
+  const stage = document.querySelector('.stage');
+  if(stage) new ResizeObserver(fitClock).observe(stage);
+}
+window.addEventListener('resize', fitClock);
+
+/* ---------------- 事件 ---------------- */
+
+el('rngOffset').addEventListener('input', e => {
+  state.offset = Number(e.target.value);
+  if(state.offset > 0 && state.anchor === 'real') state.anchor = 'dilate';
+  commit();
+});
+
+document.querySelectorAll('[data-round]').forEach(b => {
+  b.onclick = () => { state.round = Number(b.dataset.round); commit(); };
+});
+
+el('btnRewind').onclick = () => {
+  state.rewind = !state.rewind;
+  if(state.rewind){
+    if(state.offset === 0) state.offset = 10;
+    if(state.anchor === 'real') state.anchor = 'dilate';
+  }
+  commit();
+};
+
+el('btnReset').onclick = () => { state = { ...DEFAULT_STATE }; commit(); };
+
+el('btnHelp').onclick = () => {
+  alert(
+`自欺欺人时钟 · 说明
+
+【进位模式】两套造假引擎
+  甲 · 规范进位
+    真实分钟按「每 100 分钟记 1」规范化。
+    19:40 → 11:80（hi×100 + lo = 真实分钟）。
+    严格单调、不重不漏，显示永不晚于真实时间 —— 稳。
+  乙 · 逐位借位
+    把「1 小时 = 60 分钟」借成「1 小时 = 100 分钟」的读法：
+    19 点还差 40 分才满一小时，可 18 点之后那一格已经攒了 100 分钟 → 18:100。
+    总时长一秒不差（hi×60 + lo = 真实分钟），所以同样不重不漏。
+    借得越深，指针回退的小时数越多。
+
+【借位幅度】乙模式往回借几个小时；甲模式下此项不生效。
+  借 1 小时时正好复现 19:40 → 18:100 这个形态。
+
+【时段制】24 小时制 / 12 小时制。
+
+【记数文字】
+  阿拉伯数字 / 中文小写（一八 一〇〇）/ 纯文言
+  文言模式改用十二时辰 + 刻，并给时辰配上「夜半、鸡鸣、晡时」等古称；
+  年份用干支 + 年号（民国 / 公元）。
+
+【自欺欺人参数】
+  · 时光倒流：把表拨慢，最多 4 小时，日期会跟着回退。
+  · 抹零：永远往下抹，绝不往前凑。
+  · 时间锚点：决定拿哪个时刻来显示 ——
+    真实现在 / 时间膨胀 / 本小时整点 /
+    就低不就高 / 永远昨天 / 永远新年。
+
+设置自动存在浏览器本地。
+真实时间在页面底部，鼠标悬停才能勉强看清。`);
+};
+
+/* ---------------- 主循环 ---------------- */
+
+let last = 0, frames = 0, fpsT = performance.now();
+
+function loop(ts){
+  if(ts - last > 100){
+    last = ts;
+    render(new Date());
+    const n = new Date();
+    el('realClock').innerHTML =
+      `<b>${pad2(n.getHours())}:${pad2(n.getMinutes())}:${pad2(n.getSeconds())}</b>`;
+  }
+  frames++;
+  if(ts - fpsT > 1000){
+    el('fps').textContent = `${frames} fps · 纯前端 · 数据不出本机`;
+    frames = 0; fpsT = ts;
+  }
+  requestAnimationFrame(loop);
+}
+
+renderControls();
+render(new Date());
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
