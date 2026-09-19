@@ -1227,18 +1227,17 @@ function glInit(){
     float cx = uRes.x * 0.5;
     float cy = uRes.y * 0.5;
 
-    // 把屏幕坐标还原到「未扭曲」的纹理坐标。
-    // 用线性衰减而不是平方 —— 平方只在最边缘才明显，中间几乎没弧度，
-    // 线性衰减让整屏都有可见的凹面渐变（边缘压缩最狠）。
-    float offX = g.x - cx;
-    float tx   = abs(offX) / cx;
-    float magX = 1.0 - uStrength * tx;
-    float sx   = cx + offX * magX;
-
-    float offY = g.y - cy;
-    float ty   = abs(offY) / cy;
-    float magY = 1.0 - uStrength * ty;
-    float sy   = cy + offY * magY;
+    // 真鱼眼：按离屏幕中心的「径向距离」整体放大/缩小。
+    // 半径小于内圈时保持原样（中心那块最大最清楚），
+    // 往外线性缩到 uStrength 倍 —— 于是中间字大、四周字小。
+    // 注意：只有中心 mag=1 的旧写法看起来和普通文字没区别，
+    // 必须让「中心相对四周更大」才看得出来。
+    vec2  d    = (g - vec2(cx, cy)) / vec2(cx, cy);   // 归一化偏移
+    float r    = length(d);                           // 0 = 正中，1 = 边角
+    float zoom = 1.0 - uStrength * smoothstep(0.12, 1.0, r);
+    vec2  src  = (g - vec2(cx, cy)) * zoom + vec2(cx, cy);
+    float sx   = src.x;
+    float sy   = src.y;
 
     // 整屏统一向左滚动：同一个偏移量作用于所有行
     float su = sx / uRes.x + uScroll;
@@ -1250,11 +1249,11 @@ function glInit(){
     float v = uRect.z + (sy / uRes.y) * (uRect.w - uRect.z);
 
     vec4 c = texture(uTex, vec2(u, v));
-    // 淡出必须用「屏幕上的最终位置」算，不能用重映射前的坐标 ——
-    // 边缘处 mag 变小时 sy 会被拉向中心，用别的量会误判成中心而永不淡出
-    float fy = clamp(g.y / uRes.y, 0.0, 1.0);
-    float d  = abs(fy - 0.5) * 2.0;      // 0 = 屏幕正中，1 = 上下边缘
-    float fade = smoothstep(1.0, 0.0, d) * 0.90 + 0.04;
+    // 淡出用「屏幕上的最终位置」算，不能用重映射前的坐标，
+    // 否则边缘会被误判成中心而永不淡出
+    float fy   = clamp(g.y / uRes.y, 0.0, 1.0);
+    float fadeD = abs(fy - 0.5) * 2.0;      // 0 = 屏幕正中，1 = 上下边缘
+    float fade  = smoothstep(1.0, 0.0, fadeD) * 0.90 + 0.04;
     outColor = vec4(c.rgb, c.a * fade);
   }`;
 
