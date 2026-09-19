@@ -50,7 +50,7 @@
     box-shadow:0 6px 18px rgba(91,140,255,.3)}
 
   /* ================= 布局：整页三段（顶栏 / 正中时间 / 底栏） ================= */
-  .shell{min-height:100vh;display:flex;flex-direction:column;
+  .shell{min-height:100vh;display:flex;flex-direction:column;position:relative;overflow:hidden;
     --drawer-w:392px;padding-right:0;transition:padding-right .27s cubic-bezier(.4,0,.2,1)}
   /* 抽屉打开时把内容让开，时间仍然居中于「未被遮挡」的区域 */
   body.drawer-open .shell{padding-right:var(--drawer-w)}
@@ -134,6 +134,21 @@
   .soothe::before{content:"🐳";margin-right:7px}
   .soothe em{font-style:normal;color:#9db8ff;font-weight:600}
 
+  /* ================= 背景：凹面鱼眼滚动文字 ================= */
+  .fisheye{
+    position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0;
+    -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 9%,#000 91%,transparent 100%);
+            mask-image:linear-gradient(180deg,transparent 0,#000 9%,#000 91%,transparent 100%)
+  }
+  .fisheye.on{opacity:1}
+  .flakey{
+    position:absolute;left:0;width:100%;
+    display:flex;justify-content:center;align-items:center;
+    white-space:nowrap;letter-spacing:.14em;font-weight:700;
+    color:rgba(146,174,255,.085);
+    will-change:transform,opacity;transform-origin:center center
+  }
+
   /* ---------- 底栏 ---------- */
   .bottombar{
     display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;
@@ -191,6 +206,12 @@
   .opts{display:flex;flex-wrap:wrap;gap:7px}
   .opts + .opts{margin-top:8px}
   .field{font-size:12.5px;font-weight:600;color:var(--text);margin:2px 0 9px}
+  .ta{width:100%;box-sizing:border-box;resize:vertical;min-height:58px;
+    font-family:inherit;font-size:12.5px;line-height:1.6;color:var(--text);
+    background:rgba(0,0,0,.28);border:1px solid var(--line);border-radius:10px;
+    padding:9px 11px;outline:none;transition:.16s}
+  .ta:focus{border-color:rgba(91,140,255,.55);background:rgba(0,0,0,.4)}
+  .ta::placeholder{color:var(--dim2)}
   .opt{
     border:1px solid var(--line);background:rgba(0,0,0,.26);border-radius:10px;
     padding:8px 11px;font-size:12.5px;color:var(--text);cursor:pointer;transition:.16s;text-align:left
@@ -247,6 +268,9 @@
 </head>
 <body>
 <div class="shell">
+
+  <!-- ================= 背景：凹面鱼眼滚动文字 ================= -->
+  <div class="fisheye on" id="fisheye" aria-hidden="true"></div>
 
   <!-- ================= 顶栏 ================= -->
   <header class="topbar">
@@ -358,6 +382,30 @@
       </div>
     </section>
 
+    <section class="sec" data-key="bg">
+      <button class="sec-head" type="button">背景文字 <span class="caret">▶</span></button>
+      <div class="sec-body">
+        <label class="field">滚动文字（一行一句，回车换行成多行）</label>
+        <textarea class="ta" id="fishText" rows="2" spellcheck="false"
+          placeholder="输入你想让背景滚动的文字…"></textarea>
+        <div class="row" style="margin-top:12px">
+          <label>凹面强度</label>
+          <input type="range" id="rngFishStrength" min="0" max="100" step="1">
+          <span class="val" id="valFishStrength">20%</span>
+        </div>
+        <div class="row">
+          <label>滚动速度</label>
+          <input type="range" id="rngFishSpeed" min="0" max="120" step="1">
+          <span class="val" id="valFishSpeed">26</span>
+        </div>
+        <div class="row" style="margin-top:13px">
+          <label>背景</label>
+          <button class="opt" id="btnFishToggle" style="padding:6px 12px">开启</button>
+        </div>
+        <div class="hint">凹面强度越大，越靠上下边缘的行被压得越窄，形成曲面屏的凹陷感。<b>速度 0 = 静止</b>（仍保留凹面形状）。</div>
+      </div>
+    </section>
+
   </div>
 
   <div class="drawer-foot">
@@ -462,7 +510,11 @@ const STORE_KEY = 'dsh.selfdeceive.clock.v3';
 
 const DEFAULT_STATE = {
   mode:'digitborrow', carry:1, hour:'h24',
-  num:'arabic', offset:0, round:0, rewind:false, anchor:'dilate'
+  num:'arabic', offset:0, round:0, rewind:false, anchor:'dilate',
+  fishOn:true,
+  fishText:'该看时间了 · 我爱你 · 520 · 别看了，假的更好',
+  fishStrength:0.20,
+  fishSpeed:26
 };
 
 let state = load();
@@ -926,6 +978,18 @@ function renderControls(){
   document.querySelectorAll('[data-round]').forEach(b => {
     b.classList.toggle('on', Number(b.dataset.round) === state.round);
   });
+
+  // 背景文字
+  const ta = el('fishText');
+  if(ta && ta.value !== state.fishText) ta.value = state.fishText;
+  const st = Math.round(Number(state.fishStrength) * 100);
+  el('rngFishStrength').value = st;
+  el('valFishStrength').textContent = st + '%';
+  el('rngFishSpeed').value = state.fishSpeed;
+  el('valFishSpeed').textContent = String(state.fishSpeed);
+  const ft = el('btnFishToggle');
+  ft.textContent = state.fishOn === false ? '已关闭' : '开启';
+  ft.classList.toggle('on', state.fishOn !== false);
 }
 
 /* ---------------- 设置抽屉 / 折叠分区 ---------------- */
@@ -943,7 +1007,7 @@ function saveSections(obj){
 
 const secState = loadSections();
 // 默认：前两组展开，其余收起 —— 一进来看得懂，又不至于一屏全是按钮
-const DEFAULT_OPEN = { mode:true, carry:true, hour:false, num:false, anchor:false, cheat:false };
+const DEFAULT_OPEN = { mode:true, carry:true, hour:false, num:false, anchor:false, cheat:false, bg:false };
 document.querySelectorAll('.sec').forEach(sec => {
   const key = sec.dataset.key;
   const open = secState[key] !== undefined ? !!secState[key] : !!DEFAULT_OPEN[key];
@@ -1043,6 +1107,104 @@ if(typeof ResizeObserver === 'function'){
 }
 window.addEventListener('resize', fitClock);
 
+/* ---------------- 背景：凹面鱼眼滚动文字 ---------------- */
+
+const FISH_MIN_SCALE = 0.08;    // 强度拉满时，边缘行的水平缩放
+let fishEl = null, fishLines = [], fishScroll = 0, fishLineH = 0, fishGap = 0, fishRAF = 0, fishLast = 0;
+
+function fisheyeReduced(){
+  try{ return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){ return false; }
+}
+
+// 按当前文字重建行（行数按视口高度取够，保证滚动时不露空）
+function buildFisheye(){
+  fishEl = el('fisheye');
+  if(!fishEl) return;
+  fishEl.innerHTML = '';
+  fishLines = [];
+  fishEl.classList.toggle('on', state.fishOn !== false);
+  if(state.fishOn === false) return;
+
+  const raw = String(state.fishText || '').trim();
+  if(!raw) return;
+
+  // 先按换行拆；只有一行时重复铺满滚动带
+  let texts = raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  if(texts.length === 1){
+    texts = new Array(14).fill(texts[0]);
+  }
+
+  const fs = window.innerWidth < 600
+    ? 'clamp(15px, 4.6vw, 26px)'
+    : 'clamp(20px, 2.9vw, 46px)';
+  fishGap = window.innerWidth < 600 ? 46 : 74;
+
+  for(const t of texts){
+    const d = document.createElement('div');
+    d.className = 'flakey';
+    d.textContent = t;
+    d.style.fontSize = fs;
+    fishEl.appendChild(d);
+    fishLines.push(d);
+  }
+
+  // 量一次行高，之后只用数值算，不再读布局
+  const h0 = fishLines[0].getBoundingClientRect().height || 40;
+  fishLineH = h0 + fishGap;
+  fishScroll = 0;
+  layoutFisheye(true);
+}
+
+// 把每一行摆到自己的纵向位置，并按「离中心多远」压缩它的水平宽度
+function layoutFisheye(snap){
+  if(!fishEl || !fishLines.length) return;
+  const vpH = window.innerHeight;
+  const center = vpH / 2;
+  const total = fishLines.length * fishLineH;
+  const strength = Math.min(1, Math.max(0, Number(state.fishStrength)));
+  const minScale = 1 - strength * (1 - FISH_MIN_SCALE);   // 强度 0 → 1，强度 1 → 0.08
+
+  for(let i = 0; i < fishLines.length; i++){
+    const node = fishLines[i];
+    let y = i * fishLineH - fishScroll;
+    // 无缝循环
+    if(y < -fishLineH) { /* 让它在下方继续 */ }
+    y = ((y % total) + total) % total;
+    const posY = y - fishLineH;
+
+    const t = Math.min(1, Math.abs((posY + fishLineH / 2) - center) / center); // 0 中心 → 1 边缘
+    const scale = 1 + (minScale - 1) * Math.pow(t, 1.25);
+    const alpha = 0.45 + 0.55 * (1 - t);   // 越靠边缘越淡，中心行最实
+
+    if(snap){
+      node.style.transform = 'translateY(' + posY + 'px) scaleX(' + scale.toFixed(4) + ')';
+      node.style.opacity = alpha.toFixed(3);
+    }else{
+      node.style.transform = 'translateY(' + posY.toFixed(1) + 'px) scaleX(' + scale.toFixed(4) + ')';
+      node.style.opacity = alpha.toFixed(3);
+    }
+  }
+}
+
+function fisheyeTick(ts){
+  if(!fishLast) fishLast = ts;
+  const dt = Math.min(0.05, (ts - fishLast) / 1000);
+  fishLast = ts;
+
+  if(fishEl && fishLines.length && state.fishOn !== false && !fisheyeReduced()){
+    const total = fishLines.length * fishLineH;
+    fishScroll = (fishScroll + Number(state.fishSpeed) * dt) % total;
+    layoutFisheye(false);
+  }
+  fishRAF = requestAnimationFrame(fisheyeTick);
+}
+
+function startFisheye(){
+  buildFisheye();
+  if(!fishRAF) fishRAF = requestAnimationFrame(fisheyeTick);
+  if(fisheyeReduced()) layoutFisheye(true);   // 关掉动效时仍保留凹面形状
+}
+
 /* ---------------- 事件 ---------------- */
 
 el('rngOffset').addEventListener('input', e => {
@@ -1054,6 +1216,40 @@ el('rngOffset').addEventListener('input', e => {
 document.querySelectorAll('[data-round]').forEach(b => {
   b.onclick = () => { state.round = Number(b.dataset.round); commit(); };
 });
+
+/* ---------------- 背景文字：输入与滑块 ---------------- */
+
+let fishBuildTimer = 0;
+function scheduleFishBuild(){
+  clearTimeout(fishBuildTimer);
+  fishBuildTimer = setTimeout(buildFisheye, 180);
+}
+
+el('fishText').addEventListener('input', e => {
+  state.fishText = e.target.value;
+  save();
+  scheduleFishBuild();
+});
+
+el('rngFishStrength').addEventListener('input', e => {
+  state.fishStrength = Number(e.target.value) / 100;
+  save();
+  el('valFishStrength').textContent = e.target.value + '%';
+  layoutFisheye(true);            // 只改形状，不用重建 DOM
+});
+
+el('rngFishSpeed').addEventListener('input', e => {
+  state.fishSpeed = Number(e.target.value);
+  save();
+  el('valFishSpeed').textContent = e.target.value;
+});
+
+el('btnFishToggle').onclick = () => {
+  state.fishOn = state.fishOn === false;
+  save();
+  buildFisheye();
+  renderControls();
+};
 
 el('btnRewind').onclick = () => {
   state.rewind = !state.rewind;
@@ -1098,6 +1294,14 @@ el('btnHelp').onclick = () => {
     真实现在 / 时间膨胀 / 我爱你 / 本小时整点 /
     就低不就高 / 永远昨天 / 永远新年。
 
+【背景文字】
+  背景那层会滚动的文字可以随便改（设置 → 背景文字）：
+    · 一行一句；只写一行时会自动重复铺满滚动带
+    · 凹面强度：越大，越靠上下边缘的行被压得越窄，曲面屏的凹陷感越强
+    · 滚动速度：0 = 静止（仍保留凹面形状）
+  形状是每行独立做水平缩放实现的，所以文字变长变短都不影响凹面效果。
+  「↺ 回到真实」只重置时间相关设置，不会清掉你的背景文字。
+
   其中「我爱你」换成 520 计时：主显示是 24 小时制钟点样式的 HH:MM，
   表示距离最近的 5:20 还有（或已过）多久；下面另标出上一次 5:20 已过多久、
   下一次 5:20 还剩多久。一天有两个 5:20（凌晨和下午），取离现在最近的那个。
@@ -1128,6 +1332,8 @@ function loop(ts){
 
 renderControls();
 render(new Date());
+startFisheye();
+window.addEventListener('resize', scheduleFishBuild);
 requestAnimationFrame(loop);
 </script>
 </body>
