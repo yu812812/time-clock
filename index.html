@@ -620,6 +620,12 @@ function encodeTime(periodMin, mode, carry){
 
 /* ---------------- 自欺欺人层 ---------------- */
 
+// 抹零步长（分钟）：「就低不就高」若没单独设过抹零，默认按 5 分钟
+function safeStep(){
+  const r = Number(state.round);
+  return (isFinite(r) && r > 0) ? r : 5;
+}
+
 // 返回 { d(用于显示日期), sec(当日秒数) }
 function resolve(now){
   const d = new Date(now);
@@ -634,8 +640,9 @@ function resolve(now){
   let sec = baseSec - state.offset * 60;
 
   if(state.anchor === 'hour') sec = Math.floor(sec / 3600) * 3600;
-  if(state.anchor === 'safe' && state.round > 0){
-    const step = Math.max(1, state.round * 60);
+  if(state.anchor === 'safe'){
+    // 「就低不就高」自带 5 分钟步长；若已单独设过抹零，则沿用那个值
+    const step = safeStep() * 60;
     sec = Math.floor(sec / step) * step;
   }
   if(state.rewind) sec = Math.floor(sec / 60) * 60;
@@ -872,6 +879,8 @@ function renderMeta(sec, extra){
     }
     if(state.offset > 0) parts.push(`倒流 ${state.offset} 分`);
     if(state.round > 0)  parts.push(`抹零 ${state.round} 分`);
+    // 「就低不就高」没单独设抹零时按自带的 5 分钟步长，如实标出来
+    else if(state.anchor === 'safe') parts.push(`抹零 ${safeStep()} 分`);
     if(state.rewind)     parts.push('还早模式');
     // 只有真的偏离了真实时间才警示
     if(parts.length) add(`已改动：${parts.join(' · ')}`, 'warn');
@@ -896,7 +905,7 @@ function sootheText(sec, d){
   if(state.anchor === 'hour')
     return `才刚过 <em>${h} 点</em>，整点刚敲过，现在动手还有什么来不及的。`;
   if(state.anchor === 'safe')
-    return '已经抹到 5 的倍数了。抹掉的那几分钟属于误差，误差不计入人生。';
+    return `已经抹到 <em>${safeStep()}</em> 的倍数了。抹掉的那几分钟属于误差，误差不计入人生。`;
   if(state.offset > 0 && state.anchor === 'dilate')
     return `表已经拨慢 <em>${state.offset} 分钟</em>。你偷回来的这些时间，是纯粹的净赚。`;
   if(state.anchor === 'dilate'){
