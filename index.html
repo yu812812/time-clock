@@ -134,31 +134,14 @@
   .soothe::before{content:"🐳";margin-right:7px}
   .soothe em{font-style:normal;color:#9db8ff;font-weight:600}
 
-  /* ================= 背景：凹面鱼眼滚动文字 ================= */
+  /* ================= 背景：随机排布 · 向左滚动文字 ================= */
   .fisheye{
     position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0;
-    -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 9%,#000 91%,transparent 100%);
-            mask-image:linear-gradient(180deg,transparent 0,#000 9%,#000 91%,transparent 100%)
+    -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 10%,#000 90%,transparent 100%);
+            mask-image:linear-gradient(180deg,transparent 0,#000 10%,#000 90%,transparent 100%)
   }
   .fisheye.on{opacity:1}
-  /* WebGL 真鱼眼：一块全屏画布，纹理在着色器里做桶形重映射 */
   .fishgl{position:absolute;inset:0;width:100%;height:100%;display:block}
-  .fisheye.gl .flakey{display:none}
-
-  /* ---- 以下为 CSS 兜底方案（不支持 WebGL 时用）---- */
-  .flakey{
-    position:absolute;left:50%;top:0;
-    display:flex;align-items:center;
-    white-space:nowrap;font-weight:700;
-    will-change:transform,opacity;transform-origin:center center
-  }
-  .fisheye.gl .flakey{display:none}
-  .ftile{
-    display:inline-block;white-space:nowrap;
-    letter-spacing:.14em;color:rgba(146,174,255,.085);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","PingFang SC",
-      "Microsoft YaHei","Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif
-  }
 
   /* ---------- 底栏 ---------- */
   .bottombar{
@@ -400,11 +383,6 @@
         <textarea class="ta" id="fishText" rows="2" spellcheck="false"
           placeholder="输入你想让背景滚动的文字…"></textarea>
         <div class="row" style="margin-top:12px">
-          <label>凹面强度</label>
-          <input type="range" id="rngFishStrength" min="0" max="100" step="1">
-          <span class="val" id="valFishStrength">20%</span>
-        </div>
-        <div class="row">
           <label>滚动速度</label>
           <input type="range" id="rngFishSpeed" min="0" max="120" step="1">
           <span class="val" id="valFishSpeed">60</span>
@@ -417,7 +395,7 @@
           <label>默认语句</label>
           <button class="opt" id="btnFishFollow" style="padding:6px 12px">跟随锚点</button>
         </div>
-        <div class="hint">凹面强度越大，越靠上下边缘的行被压得越窄，形成曲面屏的凹陷感。<b>速度 0 = 静止</b>（仍保留凹面形状）。</div>
+        <div class="hint">每条文字的字号、纵向位置和速度都是随机的（字号 0.52×～1.30×，不会太离谱）。<b>速度 0 = 静止</b>。</div>
       </div>
     </section>
 
@@ -1022,9 +1000,6 @@ function renderControls(){
   // 背景文字
   const ta = el('fishText');
   if(ta && ta.value !== state.fishText) ta.value = state.fishText;
-  const st = Math.round(Number(state.fishStrength) * 100);
-  el('rngFishStrength').value = st;
-  el('valFishStrength').textContent = st + '%';
   el('rngFishSpeed').value = state.fishSpeed;
   el('valFishSpeed').textContent = String(state.fishSpeed);
   const ft = el('btnFishToggle');
@@ -1150,26 +1125,17 @@ if(typeof ResizeObserver === 'function'){
 }
 window.addEventListener('resize', fitClock);
 
-/* ---------------- 背景：凹面鱼眼滚动文字 ---------------- */
-/* 真鱼眼（默认）：把整屏文字画进一张纹理，再用着色器做桶形重映射 ——
-   纹理坐标按离屏幕中心的距离向外偏移，于是所有行一致地向左滚动，
-   同时整体呈现中间外凸、上下向内收的凹面曲率。
-   不支持 WebGL 时自动退回逐行 scaleX 的 CSS 近似方案。 */
+/* ---------------- 背景：随机排布 · 向左滚动文字 ---------------- */
+/* 纯 2D 画布实现（不再需要 WebGL）：
+   每绘制一条，就按时间戳当种子伪随机地决定它的字号、纵向位置和横向速度，
+   文字整体从右往左滚动，出屏后回收到右侧重新随机 —— 于是排列与大小都不规则，
+   但滚动方向始终一致。 */
 
-const FISH_MIN_SCALE = 0.08;    // CSS 兜底：强度拉满时边缘行的水平缩放
-const FISH_TILE_GAP = '　　';   // 瓦片间隔（全角空格）
-const FISH_BANDS    = 12;       // 纹理里铺几行
+const FISH_TILE_GAP = '　　';   // 同一条文字重复拼接时的间隔
 
-let fishEl = null;
-let fishScroll = 0, fishRAF = 0, fishLast = 0, fishBuildTimer = 0;
-
-/* ---- CSS 兜底用 ---- */
-let fishLines = [], fishTileW = 0, fishLineH = 0, fishGap = 0;
-
-/* ---- WebGL ---- */
-let gl = null, glProg = null, glTex = null, glCanvas = null;
-let texCanvas = null, texCtx = null, texW = 0, texH = 0;
-let uRes = null, uScroll = null, uRect = null, uCenter = null, uStrength = null;
+let fishEl = null, fishCanvas = null, fishCtx = null;
+let fishRAF = 0, fishLast = 0, fishEntries = 0;
+let fishMetrics = null, fishMetricsKey = '';   // 每条文字的随机样式 + 量好的宽度，缓存起来
 
 function fisheyeReduced(){
   try{ return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){ return false; }
@@ -1184,292 +1150,113 @@ function fishTexts(){
   const raw = String(state.fishText || '').trim();
   if(!raw) return [];
   let texts = raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-  if(texts.length === 1) texts = new Array(FISH_BANDS).fill(texts[0]);
+  if(texts.length === 1) texts = new Array(10).fill(texts[0]);
   return texts;
 }
 
-function fishFontSize(){
+// 基准字号（随视口缩放）
+function fishBaseSize(){
   return window.innerWidth < 600
-    ? Math.max(15, Math.min(26, window.innerWidth * 0.046))
-    : Math.max(20, Math.min(46, window.innerWidth * 0.029));
+    ? Math.max(13, Math.min(26, window.innerWidth * 0.048))
+    : Math.max(16, Math.min(44, window.innerWidth * 0.026));
 }
 
-/* ================= WebGL 真鱼眼 ================= */
+function fishFont(px){
+  return '700 ' + px.toFixed(1) + 'px -apple-system,"Segoe UI","Noto Sans SC","PingFang SC",'
+       + '"Microsoft YaHei","Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+}
 
-function glInit(){
-  if(glCanvas) return true;
-  fishEl = el('fisheye');
-  if(!fishEl) return false;
+// 每条文字的随机样式 + 宽度只算一次，之后每帧复用（否则 measureText 是主要开销）
+function fishEnsureMetrics(){
+  const texts = fishTexts();
+  const base = fishBaseSize();
+  const dpr = (fishCtx && fishCtx.__dpr) || 1;
+  const key = fishCanvas.width + 'x' + fishCanvas.height + '|' + base.toFixed(2) + '|'
+            + texts.length + '|' + texts.join('\\u0001');
+  if(key === fishMetricsKey && fishMetrics) return fishMetrics;
 
-  glCanvas = document.createElement('canvas');
-  glCanvas.className = 'fishgl';
-  fishEl.appendChild(glCanvas);
+  fishMetricsKey = key;
+  fishMetrics = texts.map((t, k) => {
+    const r1 = fract(Math.sin(k * 12.9898) * 43758.5453);
+    const r2 = fract(Math.sin(k * 78.2330) * 12345.6789);
+    const r3 = fract(Math.sin(k * 45.1640) * 24634.6345);
+    const size = base * dpr * (0.52 + r1 * 0.78);      // 0.52x ~ 1.30x
+    fishCtx.font = fishFont(size);
+    const tw = Math.max(2, fishCtx.measureText(t + FISH_TILE_GAP).width + 8 * dpr);
+    return { text: t + FISH_TILE_GAP, size, tw, yFrac: 0.07 + r2 * 0.86,
+             alpha: 0.030 + r3 * 0.035, speedK: 0.55 + r1 * 0.8 };
+  });
+  return fishMetrics;
+}
 
-  try{
-    gl = glCanvas.getContext('webgl2', { alpha:true, premultipliedAlpha:true });
-  }catch(e){ gl = null; }
-  if(!gl){ glCanvas.remove(); glCanvas = null; return false; }
+// 逐帧重绘：一条文字画多遍拼满整行，左侧出去的部分会从右边重新进来
+function fishPaint(dt){
+  if(!fishCtx) return;
+  const W = fishCanvas.width, H = fishCanvas.height;
+  const dpr = fishCtx.__dpr || 1;
+  const metrics = fishEnsureMetrics();
+  if(!metrics || !metrics.length) return;
 
-  const VS = `#version 300 es
-  in vec2 p;
-  void main(){ gl_Position = vec4(p, 0.0, 1.0); }`;
+  fishCtx.clearRect(0, 0, W, H);
+  fishCtx.textBaseline = 'middle';
 
-  const FS = `#version 300 es
-  precision highp float;
-  uniform sampler2D uTex;
-  uniform vec2  uRes;       // 显示尺寸（设备像素）
-  uniform float uScroll;    // 已滚动字节（0..1）
-  uniform vec4  uRect;      // 纹理里一行带的有效范围：minU, maxU, minV, maxV
-  uniform float uStrength;  // 桶形强度 0..1
-  out vec4 outColor;
-  void main(){
-    vec2 g = gl_FragCoord.xy;
-    float cx = uRes.x * 0.5;
-    float cy = uRes.y * 0.5;
+  const run = !fisheyeReduced();
+  if(run) fishEntries += dt;
+  const speed = Number(state.fishSpeed) || 0;
 
-    // 真鱼眼：按离屏幕中心的「径向距离」整体放大/缩小。
-    // 半径小于内圈时保持原样（中心那块最大最清楚），
-    // 往外线性缩到 uStrength 倍 —— 于是中间字大、四周字小。
-    // 注意：只有中心 mag=1 的旧写法看起来和普通文字没区别，
-    // 必须让「中心相对四周更大」才看得出来。
-    vec2  d    = (g - vec2(cx, cy)) / vec2(cx, cy);   // 归一化偏移
-    float r    = length(d);                           // 0 = 正中，1 = 边角
-    float zoom = 1.0 - uStrength * smoothstep(0.12, 1.0, r);
-    vec2  src  = (g - vec2(cx, cy)) * zoom + vec2(cx, cy);
-    float sx   = src.x;
-    float sy   = src.y;
+  for(const m of metrics){
+    fishCtx.font = fishFont(m.size);
+    fishCtx.fillStyle = 'rgba(146,174,255,' + m.alpha.toFixed(3) + ')';
 
-    // 整屏统一向左滚动：同一个偏移量作用于所有行
-    float su = sx / uRes.x + uScroll;
-    su = fract(su);
+    const px = run ? fishEntries * speed * m.speedK * dpr : 0;
+    let start = -(px % m.tw);
+    if(start > 0) start -= m.tw;
 
-    float spanU = uRect.y - uRect.x;
-    float u = uRect.x + su * spanU;
-
-    float v = uRect.z + (sy / uRes.y) * (uRect.w - uRect.z);
-
-    vec4 c = texture(uTex, vec2(u, v));
-    // 淡出用「屏幕上的最终位置」算，不能用重映射前的坐标，
-    // 否则边缘会被误判成中心而永不淡出
-    float fy   = clamp(g.y / uRes.y, 0.0, 1.0);
-    float fadeD = abs(fy - 0.5) * 2.0;      // 0 = 屏幕正中，1 = 上下边缘
-    float fade  = smoothstep(1.0, 0.0, fadeD) * 0.90 + 0.04;
-    outColor = vec4(c.rgb, c.a * fade);
-  }`;
-
-  function mkShader(type, src){
-    const s = gl.createShader(type);
-    gl.shaderSource(s, src);
-    gl.compileShader(s);
-    if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){
-      console.warn('[fisheye] shader:', gl.getShaderInfoLog(s));
-      return null;
+    const y = m.yFrac * H;
+    for(let x = start; x < W + m.tw; x += m.tw){
+      fishCtx.fillText(m.text, x, y);
     }
-    return s;
   }
-  const vs = mkShader(gl.VERTEX_SHADER, VS);
-  const fs = mkShader(gl.FRAGMENT_SHADER, FS);
-  if(!vs || !fs){ gl = null; glCanvas.remove(); glCanvas = null; return false; }
-
-  glProg = gl.createProgram();
-  gl.attachShader(glProg, vs); gl.attachShader(glProg, fs);
-  gl.linkProgram(glProg);
-  if(!gl.getProgramParameter(glProg, gl.LINK_STATUS)){
-    console.warn('[fisheye] link:', gl.getProgramInfoLog(glProg));
-    gl = null; glCanvas.remove(); glCanvas = null; return false;
-  }
-  gl.useProgram(glProg);
-
-  const buf = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
-  const loc = gl.getAttribLocation(glProg, 'p');
-  gl.enableVertexAttribArray(loc);
-  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-
-  uRes = gl.getUniformLocation(glProg, 'uRes');
-  uScroll = gl.getUniformLocation(glProg, 'uScroll');
-  uRect = gl.getUniformLocation(glProg, 'uRect');
-  uCenter = gl.getUniformLocation(glProg, 'uCenter');
-  uStrength = gl.getUniformLocation(glProg, 'uStrength');
-
-  glTex = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, glTex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  // 纹理本身就是预乘 alpha，直接覆盖即可；再开混合会把文字叠亮一倍
-  gl.disable(gl.BLEND);
-  gl.clearColor(0,0,0,0);
-  return true;
 }
 
-// 按当前尺寸准备好纹理画布
-// 分配画布与纹理，并算出这一帧要用到的尺寸参数（每帧调用，内部自己做变化判断）
-function texAlloc(){
-  if(!glCanvas || !gl) return null;
+function fract(v){ return v - Math.floor(v); }
 
+function fishResize(){
+  if(!fishCanvas) return;
   const vw = Math.max(320, window.innerWidth);
   const vh = Math.max(240, window.innerHeight);
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   const w = Math.round(vw * dpr), h = Math.round(vh * dpr);
-
-  if(glCanvas.width !== w || glCanvas.height !== h){
-    glCanvas.width = w; glCanvas.height = h;
-    glCanvas.style.width = vw + 'px';
-    glCanvas.style.height = vh + 'px';
-  }
-  gl.viewport(0, 0, w, h);
-
-  const rows = fishTexts();
-  if(!rows.length) return null;
-
-  const fontPx = Math.max(8, Math.round(fishFontSize() * dpr));
-  const lineH = Math.max(8, Math.round(fontPx * 1.35));
-
-  // 行数按视口铺满再留冗余，保证纵向平铺后不留空
-  const need = Math.ceil(h / lineH) + 3;
-  const bands = Math.max(rows.length, need);
-
-  const tw = w * 2;                    // 两屏宽，便于横向无缝平铺
-  const th = bands * lineH;
-
-  if(texW !== tw || texH !== th || !texCanvas || !texCtx){
-    texW = tw; texH = th;
-    texCanvas = document.createElement('canvas');
-    texCanvas.width = tw; texCanvas.height = th;
-    texCtx = texCanvas.getContext('2d');
-  }
-
-  return { w, h, dpr, rows, fontPx, lineH, bands };
+  if(fishCanvas.width === w && fishCanvas.height === h) return;
+  fishCanvas.width = w; fishCanvas.height = h;
+  fishCanvas.style.width = vw + 'px';
+  fishCanvas.style.height = vh + 'px';
+  fishCtx.__dpr = dpr;
+  fishMetricsKey = '';      // 尺寸变了，缓存作废
 }
-
-// 把文字画进纹理
-function texPaint(m){
-  const ctx = texCtx;
-  ctx.clearRect(0, 0, texW, texH);
-  ctx.font = '700 ' + m.fontPx + 'px -apple-system,"Segoe UI","Noto Sans SC","PingFang SC",'
-           + '"Microsoft YaHei","Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
-  ctx.fillStyle = 'rgba(146,174,255,0.055)';
-  ctx.textBaseline = 'middle';
-
-  // 横向偏移：所有行共用同一个值，保证整屏一起走。
-  // 取负号 —— 着色器的采样窗口是「向右」扫的（内容相对左移），
-  // 纹理瓦片若也向右移就抵消成静止了；取负号才让净效果是整屏向左。
-  const shift = ((-fishScroll * texW) % texW + texW) % texW;
-
-  for(let b = 0; b < m.bands; b++){
-    const text = m.rows[b % m.rows.length];
-    const tw = Math.max(1, ctx.measureText(text + FISH_TILE_GAP).width);
-    const y = b * m.lineH + m.lineH / 2;
-    // 平铺覆盖 [0, texW]
-    for(let x = -tw + (shift % tw) - tw; x < texW + tw; x += tw){
-      ctx.fillText(text + FISH_TILE_GAP, x, y);
-    }
-  }
-}
-
-function glDraw(m){
-  texPaint(m);
-
-  gl.bindTexture(gl.TEXTURE_2D, glTex);
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-  // canvas 2D 给的是「非预乘」数据，而输出画布是预乘的 ——
-  // 不在这里预乘，浏览器会把 RGB 当成已乘过 alpha，文字会亮得刺眼
-  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texCanvas);
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
-
-  const bandsRows = m.bands * m.lineH;
-  const fill = bandsRows > 0 ? Math.min(1, m.h / bandsRows) : 1;
-  gl.uniform2f(uRes, m.w, m.h);
-  gl.uniform1f(uScroll, fishScroll);
-  gl.uniform4f(uRect, 0, 1, 0, fill);
-  gl.uniform1f(uStrength, Math.min(1, Math.max(0, Number(state.fishStrength))));
-
-  gl.clear(gl.COLOR_BUFFER_BIT);
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-}
-
-/* ================= CSS 兜底 ================= */
-
-function buildCss(){
-  fishEl.innerHTML = '';
-  fishLines = [];
-  const rows = fishTexts();
-  if(!rows.length) return;
-
-  const fs = fishFontSize() + 'px';
-  fishGap = window.innerWidth < 600 ? 46 : 74;
-
-  for(const t of rows){
-    const line = document.createElement('div');
-    line.className = 'flakey';
-    line.style.fontSize = fs;
-    fishEl.appendChild(line);
-    const tile = document.createElement('span');
-    tile.className = 'ftile';
-    tile.textContent = t + FISH_TILE_GAP;
-    line.appendChild(tile);
-    fishLines.push(line);
-  }
-
-  const t0 = fishLines[0].firstChild.getBoundingClientRect();
-  fishTileW = Math.max(24, t0.width);
-  const h0 = fishLines[0].getBoundingClientRect().height || 40;
-  fishLineH = h0 + fishGap;
-
-  const need = Math.ceil(window.innerWidth / fishTileW) + 3;
-  for(const line of fishLines){
-    const src = line.firstChild.textContent;
-    for(let k = 1; k < need; k++){
-      const t = document.createElement('span');
-      t.className = 'ftile';
-      t.textContent = src;
-      line.appendChild(t);
-    }
-  }
-}
-
-function layoutCss(){
-  if(!fishLines.length) return;
-  const vpH = window.innerHeight, center = vpH / 2;
-  const total = fishLines.length * fishLineH;
-  const strength = Math.min(1, Math.max(0, Number(state.fishStrength)));
-  const minScale = 1 - strength * (1 - FISH_MIN_SCALE);
-  const off = -(((fishScroll * fishTileW) % fishTileW) + fishTileW) % fishTileW;
-
-  for(let i = 0; i < fishLines.length; i++){
-    const node = fishLines[i];
-    let y = i * fishLineH - fishScroll * total;
-    y = ((y % total) + total) % total - fishLineH;
-    const t = Math.min(1, Math.abs((y + fishLineH / 2) - center) / center);
-    const scale = 1 + (minScale - 1) * Math.pow(t, 1.25);
-    node.style.transform = 'translate(-50%, 0) translateX(' + off.toFixed(2) + 'px) translateY('
-      + (Math.round(y * 10) / 10) + 'px) scaleX(' + scale.toFixed(4) + ')';
-    node.style.opacity = (0.45 + 0.55 * (1 - t)).toFixed(3);
-  }
-}
-
-/* ================= 对外 ================= */
-
-let fishDirty = true;          // 需要重画纹理（文字/尺寸/强度变了）
-function fishMarkDirty(){ fishDirty = true; }
 
 function buildFisheye(){
   fishEl = el('fisheye');
   if(!fishEl) return;
   fishEl.classList.toggle('on', state.fishOn !== false);
+  fishEl.classList.remove('gl');
 
-  if(state.fishOn === false){ fishEl.innerHTML = ''; fishLines = []; return; }
-  if(!fishTexts().length){ fishEl.innerHTML = ''; fishLines = []; return; }
+  const off = state.fishOn === false || !fishTexts().length;
+  if(off){
+    fishEl.innerHTML = '';
+    fishCanvas = null; fishCtx = null;
+    return;
+  }
 
-  const useGl = glInit();
-  fishEl.classList.toggle('gl', useGl);
-  if(useGl){ texAlloc(); fishDirty = true; }
-  else { buildCss(); layoutCss(); }
+  if(!fishCanvas || !fishCtx){
+    fishEl.innerHTML = '';
+    fishCanvas = document.createElement('canvas');
+    fishCanvas.className = 'fishgl';
+    fishEl.appendChild(fishCanvas);
+    fishCtx = fishCanvas.getContext('2d');
+    if(!fishCtx){ fishCanvas = null; return; }
+  }
+  fishResize();
 }
 
 function fisheyeTick(ts){
@@ -1477,21 +1264,9 @@ function fisheyeTick(ts){
   const dt = Math.min(0.05, (ts - fishLast) / 1000);
   fishLast = ts;
 
-  if(fishEl && state.fishOn !== false){
-    const run = !fisheyeReduced();
-    if(run){
-      // 统一向左滚动。
-      // 注意方向由两个环节叠加决定：着色器的采样窗口随 uScroll 右移（内容相对左移），
-      // 而纹理里瓦片按 shift 右移。两者方向相反、速度相同，谁取正就决定最终方向 ——
-      // 这里把纹理瓦片取负，净效果就是整屏一起向左。
-      fishScroll = (fishScroll + Number(state.fishSpeed) * dt / Math.max(1, window.innerWidth)) % 1;
-    }
-    if(gl && glCanvas){
-      const m = texAlloc();
-      if(m && (run || fishDirty)){ glDraw(m); fishDirty = false; }
-    } else if(fishLines.length && run){
-      layoutCss();
-    }
+  if(fishCanvas && state.fishOn !== false){
+    fishResize();
+    fishPaint(dt);
   }
   fishRAF = requestAnimationFrame(fisheyeTick);
 }
@@ -1499,10 +1274,7 @@ function fisheyeTick(ts){
 function startFisheye(){
   buildFisheye();
   if(!fishRAF) fishRAF = requestAnimationFrame(fisheyeTick);
-  window.addEventListener('resize', () => {
-    fishDirty = true;
-    if(!gl) buildFisheye();
-  });
+  window.addEventListener('resize', () => { fishResize(); });
 }
 
 /* ---------------- 事件 ---------------- */
@@ -1525,13 +1297,6 @@ el('fishText').addEventListener('input', e => {
   save();
   renderControls();
   buildFisheye();
-});
-
-el('rngFishStrength').addEventListener('input', e => {
-  state.fishStrength = Number(e.target.value) / 100;
-  save();
-  el('valFishStrength').textContent = e.target.value + '%';
-  layoutFisheye(true);            // 只改形状，不用重建 DOM
 });
 
 el('rngFishSpeed').addEventListener('input', e => {
