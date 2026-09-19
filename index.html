@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>自欺欺人时钟</title>
-<meta name="description" content="把时间改成你想看到的样子：自由进位制（19:40 可以显示成 18:100）、12/24 小时制、中文与纯文言时辰、时光倒流与抹零。单文件网页，打开即用。">
+<meta name="description" content="把时间改成你想看到的样子：自由进位制（19:40 可以显示成 18:100）、520 我爱你倒计时、12/24 小时制、中文与纯文言时辰、时光倒流与抹零。单文件网页，打开即用。">
 <meta name="theme-color" content="#070a12">
 <meta property="og:title" content="自欺欺人时钟">
-<meta property="og:description" content="把时间改成你想看到的样子：自由进位制（19:40 可以显示成 18:100）、12/24 小时制、中文与纯文言时辰、时光倒流与抹零。单文件网页，打开即用。">
+<meta property="og:description" content="把时间改成你想看到的样子：自由进位制（19:40 可以显示成 18:100）、520 我爱你倒计时、12/24 小时制、中文与纯文言时辰、时光倒流与抹零。单文件网页，打开即用。">
 <meta property="og:type" content="website">
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTUiIGZpbGw9IiM1YjhjZmYiLz48Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIxOSIgZmlsbD0iI2VlZjNmZiIvPjxjaXJjbGUgY3g9IjMyIiBjeT0iMzIiIHI9IjE2IiBmaWxsPSIjMGIxMDIwIi8+PHJlY3QgeD0iMzAuNSIgeT0iMTkiIHdpZHRoPSIzIiBoZWlnaHQ9IjE0IiByeD0iMS41IiBmaWxsPSIjOGZiMGZmIi8+PHJlY3QgeD0iMzAuNSIgeT0iMzAuNSIgd2lkdGg9IjEyIiBoZWlnaHQ9IjMiIHJ4PSIxLjUiIGZpbGw9IiNlZWYzZmYiLz48Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIyLjYiIGZpbGw9IiM1YjhjZmYiLz48L3N2Zz4=">
 <style>
@@ -94,6 +94,11 @@
   /* 字号由脚本按实际可用宽度量算后写入 --clock-size，位数变化也不会溢出 */
   .clock .tok{font-weight:800;letter-spacing:-.02em;font-size:var(--clock-size, 120px)}
   .clock .tok.sep{color:var(--dim);font-weight:600;margin:0 .04em}
+  /* 「我爱你」锚点的符号与基准点 */
+  .clock .tok.sep.love{color:#ff6b9d;font-size:calc(var(--clock-size, 120px) * .62);
+    margin:0 .1em;text-shadow:0 0 30px rgba(255,107,157,.55)}
+  .clock .tok.love420{font-size:calc(var(--clock-size, 120px) * .42);color:#ff9ec4;
+    align-self:center;letter-spacing:.02em}
   .clock .tok.suffix{font-size:clamp(15px,2.4vw,26px);font-weight:700;color:var(--acc);
     align-self:center;margin-left:.5em;border:1px solid rgba(91,140,255,.4);border-radius:999px;
     padding:.32em .8em;background:rgba(91,140,255,.1);letter-spacing:.06em;white-space:nowrap}
@@ -417,11 +422,41 @@ const NUM_SYSTEMS = [
 const ANCHORS = [
   { id:'real',      name:'真实现在',   desc:'诚实模式（不推荐）' },
   { id:'dilate',    name:'时间膨胀',   desc:'套用上面的进位引擎' },
+  { id:'love520',   name:'我爱你',     desc:'距离 5:20 有多远' },
   { id:'hour',      name:'本小时整点', desc:'永远「才刚过整点」' },
   { id:'safe',      name:'就低不就高', desc:'分钟抹到 5 的倍数' },
   { id:'yesterday', name:'永远昨天',   desc:'日期定格在昨天' },
   { id:'newyear',   name:'永远新年',   desc:'日期定格 1 月 1 日' }
 ];
+
+// 「我爱你」锚点：以每天 5:20 为基准，算「上一次过去多久 / 下一次还剩多久」
+const LOVE_SEC = (5 * 60 + 20) * 60;   // 5:20 = 19200 秒
+const DAY_SEC  = 86400;
+
+// 距离基准点最近的一次有多远（带方向），以及已过 / 还剩
+// 直接返回 sinceLast / nextIn 两个时长，避免「已过」和「还剩」写反
+function loveOffset(sec){
+  const day = ((sec % DAY_SEC) + DAY_SEC) % DAY_SEC;
+  let diff = day - LOVE_SEC;                       // 今天 5:20 起算的秒差
+  if(diff >  DAY_SEC / 2) diff -= DAY_SEC;         // 就近取，避免绕远
+  if(diff < -DAY_SEC / 2) diff += DAY_SEC;
+
+  const near = Math.abs(diff);
+  const since = diff >= 0;                         // 最近的这次是否已经过去
+  const sinceLast = since ? near : DAY_SEC - near; // 距上一次 5:20 多久
+  let nextIn      = since ? DAY_SEC - near : near; // 距下一次 5:20 多久
+  if(nextIn <= 0) nextIn = DAY_SEC;                // 正好在 5:20 上 → 下一次是明天
+  return { diff, since, near, sinceLast, nextIn };
+}
+
+// 把秒数写成「X 小时 Y 分」这种好读的样子
+function durText(totalSec){
+  const s = Math.max(0, Math.round(totalSec));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if(h <= 0) return m + ' 分钟';
+  return h + ' 小时 ' + (m > 0 ? m + ' 分' : '整');
+}
 
 /* ---------------- 状态 ---------------- */
 
@@ -614,6 +649,35 @@ function render(now){
 
   const extra = [];
 
+  /* ---------- 我爱你：距离 5:20 的远近 ---------- */
+  if(state.anchor === 'love520'){
+    const { since, near, sinceLast, nextIn } = loveOffset(sec);
+    const min = Math.floor(near / 60);          // 取整到分钟，不显示秒
+
+    // 主显示：以 5:20 为中心的距离，用 ♥ 代替冒号，一眼看出不是钟点
+    clock.appendChild(numGroup(String(min)));
+    const sep = document.createElement('span');
+    sep.className = 'tok sep love';
+    sep.textContent = '♥';
+    clock.appendChild(sep);
+    const five = document.createElement('span');
+    five.className = 'tok love420';
+    five.textContent = '5:20';
+    clock.appendChild(five);
+
+    renderMeta(sec, extra);
+
+    renderDateLine(
+      `上一次 5:20 已过 ${durText(sinceLast)}　·　下一次 5:20 还剩 ${durText(nextIn)}`
+    );
+    el('soothe').innerHTML =
+      `距离 <em>5:20</em> ${since ? '已经过去' : '还有'} <em>${durText(near)}</em>，` +
+      `上一次已过 <em>${durText(sinceLast)}</em>、下一次还剩 <em>${durText(nextIn)}</em>。` +
+      (since ? '说出口这件事，从来都不嫌晚。' : '再等一会儿，就到了。');
+    fitClock();
+    return;
+  }
+
   if(isClassic){
     /* ---------- 文言：十二时辰 + 刻 ---------- */
     const hour = Math.floor(sec / 3600);
@@ -707,6 +771,15 @@ function renderMeta(sec, extra){
     c.innerHTML = html;
     meta.appendChild(c);
   };
+
+  // 「我爱你」锚点：显示距离 5:20 的方向，不显示无关的进位设置
+  if(state.anchor === 'love520'){
+    const { since, near, sinceLast, nextIn } = loveOffset(sec);
+    add(since ? `5:20 <b>已过</b> ${durText(near)}` : `5:20 <b>还有</b> ${durText(near)}`, 'warn');
+    add(`上一次已过 <b>${durText(sinceLast)}</b>`);
+    add(`下一次还剩 <b>${durText(nextIn)}</b>`);
+    return;
+  }
 
   // 最要紧的一条：现在显示的到底是不是真实时间
   const isReal = state.anchor === 'real' && state.offset === 0
@@ -1019,8 +1092,12 @@ el('btnHelp').onclick = () => {
   · 时光倒流：把表拨慢，最多 4 小时，日期会跟着回退。
   · 抹零：永远往下抹，绝不往前凑。
   · 时间锚点：决定拿哪个时刻来显示 ——
-    真实现在 / 时间膨胀 / 本小时整点 /
+    真实现在 / 时间膨胀 / 我爱你 / 本小时整点 /
     就低不就高 / 永远昨天 / 永远新年。
+
+  其中「我爱你」换成 520 计时：主显示是距离 5:20 还有多少分钟，
+  并标出上一次 5:20 已过多久、下一次 5:20 还剩多久。
+  一天有两个 5:20（凌晨和下午），取离现在最近的那个。
 
 设置自动存在浏览器本地。
 真实时间在页面底部，鼠标悬停才能勉强看清。`);
