@@ -652,8 +652,10 @@ function render(now){
     const { since, near, sinceLast, nextIn } = loveOffset(sec);
     // 主显示写成 24 小时制钟点的样子：HH:MM
     const cdMin = Math.floor(near / 60);        // 取整到分钟，不显示秒
-    const hh = pad2(Math.floor(cdMin / 60));
-    const mm = pad2(cdMin % 60);
+    // 正好落在 5:20 上时距离是 24 小时，但钟面没有 24:00，按 00:00 显示
+    const shownMin = cdMin % 1440;
+    const hh = pad2(Math.floor(shownMin / 60));
+    const mm = pad2(shownMin % 60);
 
     // 主显示：像钟点一样的 HH:MM，中间用 ♥ 代替冒号，一眼看出不是普通钟表
     clock.appendChild(numGroup(enc(hh)));
@@ -774,7 +776,8 @@ function renderMeta(sec, extra){
   if(state.anchor === 'love520'){
     const { since, near, sinceLast, nextIn } = loveOffset(sec);
     const cdMin = Math.floor(near / 60);
-    const clockLike = pad2(Math.floor(cdMin / 60)) + ':' + pad2(cdMin % 60);
+    const shownMin = cdMin % 1440;
+    const clockLike = pad2(Math.floor(shownMin / 60)) + ':' + pad2(shownMin % 60);
     add(since ? `5:20 <b>已过</b> ${clockLike}` : `5:20 <b>还有</b> ${clockLike}`, 'warn');
     add(`上一次已过 <b>${durText(sinceLast)}</b>`);
     add(`下一次还剩 <b>${durText(nextIn)}</b>`);
