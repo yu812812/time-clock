@@ -536,7 +536,7 @@ const DEFAULT_STATE = {
   fishOn:true,
   fishFollow:true,
   fishText:'⏳ 时间还早 · 再撑一会儿 · 一天有 36 小时 🐳',
-  fishStrength:0.35,
+  fishStrength:0.45,
   fishSpeed:60
 };
 
@@ -1224,19 +1224,20 @@ function glInit(){
   out vec4 outColor;
   void main(){
     vec2 g = gl_FragCoord.xy;
-
-    // 把屏幕坐标还原到「未扭曲」的纹理坐标：按离屏幕中心的距离向外放大
     float cx = uRes.x * 0.5;
     float cy = uRes.y * 0.5;
 
+    // 把屏幕坐标还原到「未扭曲」的纹理坐标。
+    // 用线性衰减而不是平方 —— 平方只在最边缘才明显，中间几乎没弧度，
+    // 线性衰减让整屏都有可见的凹面渐变（边缘压缩最狠）。
     float offX = g.x - cx;
     float tx   = abs(offX) / cx;
-    float magX = 1.0 - uStrength * tx * tx;
+    float magX = 1.0 - uStrength * tx;
     float sx   = cx + offX * magX;
 
     float offY = g.y - cy;
     float ty   = abs(offY) / cy;
-    float magY = 1.0 - uStrength * ty * ty;
+    float magY = 1.0 - uStrength * ty;
     float sy   = cy + offY * magY;
 
     // 整屏统一向左滚动：同一个偏移量作用于所有行
@@ -1354,8 +1355,10 @@ function texPaint(m){
   ctx.fillStyle = 'rgba(146,174,255,0.055)';
   ctx.textBaseline = 'middle';
 
-  // 横向偏移：所有行同一个值，保证整屏一起向左
-  const shift = ((fishScroll * texW) % texW + texW) % texW;
+  // 横向偏移：所有行共用同一个值，保证整屏一起走。
+  // 取负号 —— 着色器的采样窗口是「向右」扫的（内容相对左移），
+  // 纹理瓦片若也向右移就抵消成静止了；取负号才让净效果是整屏向左。
+  const shift = ((-fishScroll * texW) % texW + texW) % texW;
 
   for(let b = 0; b < m.bands; b++){
     const text = m.rows[b % m.rows.length];
@@ -1478,7 +1481,10 @@ function fisheyeTick(ts){
   if(fishEl && state.fishOn !== false){
     const run = !fisheyeReduced();
     if(run){
-      // 统一往左：整屏共用一个滚动量，所有行一起走
+      // 统一向左滚动。
+      // 注意方向由两个环节叠加决定：着色器的采样窗口随 uScroll 右移（内容相对左移），
+      // 而纹理里瓦片按 shift 右移。两者方向相反、速度相同，谁取正就决定最终方向 ——
+      // 这里把纹理瓦片取负，净效果就是整屏一起向左。
       fishScroll = (fishScroll + Number(state.fishSpeed) * dt / Math.max(1, window.innerWidth)) % 1;
     }
     if(gl && glCanvas){
