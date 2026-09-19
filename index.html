@@ -141,12 +141,18 @@
             mask-image:linear-gradient(180deg,transparent 0,#000 9%,#000 91%,transparent 100%)
   }
   .fisheye.on{opacity:1}
+  /* 每一行：绝对定位在某个纵向位置，内部是一条横向拼接的瓦片带 */
   .flakey{
-    position:absolute;left:0;width:100%;
-    display:flex;justify-content:center;align-items:center;
-    white-space:nowrap;letter-spacing:.14em;font-weight:700;
-    color:rgba(146,174,255,.085);
+    position:absolute;left:50%;top:0;
+    display:flex;align-items:center;
+    white-space:nowrap;font-weight:700;
     will-change:transform,opacity;transform-origin:center center
+  }
+  .ftile{
+    display:inline-block;white-space:nowrap;
+    letter-spacing:.14em;color:rgba(146,174,255,.085);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","PingFang SC",
+      "Microsoft YaHei","Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif
   }
 
   /* ---------- 底栏 ---------- */
@@ -402,6 +408,10 @@
           <label>背景</label>
           <button class="opt" id="btnFishToggle" style="padding:6px 12px">开启</button>
         </div>
+        <div class="row">
+          <label>默认语句</label>
+          <button class="opt" id="btnFishFollow" style="padding:6px 12px">跟随锚点</button>
+        </div>
         <div class="hint">凹面强度越大，越靠上下边缘的行被压得越窄，形成曲面屏的凹陷感。<b>速度 0 = 静止</b>（仍保留凹面形状）。</div>
       </div>
     </section>
@@ -466,13 +476,20 @@ const NUM_SYSTEMS = [
 ];
 
 const ANCHORS = [
-  { id:'real',      name:'真实现在',   desc:'诚实模式（不推荐）' },
-  { id:'dilate',    name:'时间膨胀',   desc:'套用上面的进位引擎' },
-  { id:'love520',   name:'我爱你',     desc:'距离 5:20 有多远' },
-  { id:'hour',      name:'本小时整点', desc:'永远「才刚过整点」' },
-  { id:'safe',      name:'就低不就高', desc:'分钟抹到 5 的倍数' },
-  { id:'yesterday', name:'永远昨天',   desc:'日期定格在昨天' },
-  { id:'newyear',   name:'永远新年',   desc:'日期定格 1 月 1 日' }
+  { id:'real',      name:'真实现在',   desc:'诚实模式（不推荐）',
+    fish:'⏰ 现在是 真实时间 · 别看了，假的更好' },
+  { id:'dilate',    name:'时间膨胀',   desc:'套用上面的进位引擎',
+    fish:'⏳ 时间还早 · 再撑一会儿 · 一天有 36 小时 🐳' },
+  { id:'love520',   name:'我爱你',     desc:'距离 5:20 有多远',
+    fish:'❤️ 我爱你 · 5:20 · 每天都想对你说 · 💕 想你' },
+  { id:'hour',      name:'本小时整点', desc:'永远「才刚过整点」',
+    fish:'🕐 才刚过整点 · 整点刚敲过 · 现在动手还来得及 🍃' },
+  { id:'safe',      name:'就低不就高', desc:'分钟抹到 5 的倍数',
+    fish:'🧮 抹零了 · 误差不计入人生 · 四舍五入等于没超时 📉' },
+  { id:'yesterday', name:'永远昨天',   desc:'日期定格在昨天',
+    fish:'📅 今天还是昨天 · 昨天的债不算今天的债 · 你甚至还没开始 🌙' },
+  { id:'newyear',   name:'永远新年',   desc:'日期定格 1 月 1 日',
+    fish:'🎉 新年第一天 · 一切都还来得及 · 新的一年才刚开始 ✨' }
 ];
 
 // 「我爱你」锚点：以每天 5:20 为基准，算「上一次过去多久 / 下一次还剩多久」
@@ -512,7 +529,8 @@ const DEFAULT_STATE = {
   mode:'digitborrow', carry:1, hour:'h24',
   num:'arabic', offset:0, round:0, rewind:false, anchor:'dilate',
   fishOn:true,
-  fishText:'该看时间了 · 我爱你 · 520 · 别看了，假的更好',
+  fishFollow:true,
+  fishText:'⏳ 时间还早 · 再撑一会儿 · 一天有 36 小时 🐳',
   fishStrength:0.20,
   fishSpeed:26
 };
@@ -936,7 +954,15 @@ function renderControls(){
   });
   buildOpts('grpHour',  HOUR_MODES,    state.hour,   id => { state.hour = id;   commit(); });
   buildOpts('grpNum',   NUM_SYSTEMS,   state.num,    id => { state.num = id;    commit(); });
-  buildOpts('grpAnchor',ANCHORS,       state.anchor, id => { state.anchor = id; commit(); });
+  buildOpts('grpAnchor',ANCHORS,       state.anchor, id => {
+    state.anchor = id;
+    // 换锚点时同步换背景默认语句（可在「背景文字」里关掉这个跟随）
+    if(state.fishFollow !== false){
+      const t = anchorFishText();
+      if(t){ state.fishText = t; buildFisheye(); }
+    }
+    commit();
+  });
 
   // 模式说明
   el('modeHint').innerHTML = state.mode === 'normalized'
@@ -990,6 +1016,9 @@ function renderControls(){
   const ft = el('btnFishToggle');
   ft.textContent = state.fishOn === false ? '已关闭' : '开启';
   ft.classList.toggle('on', state.fishOn !== false);
+  const ff = el('btnFishFollow');
+  ff.textContent = state.fishFollow !== false ? '跟随锚点' : '自定义';
+  ff.classList.toggle('on', state.fishFollow !== false);
 }
 
 /* ---------------- 设置抽屉 / 折叠分区 ---------------- */
@@ -1108,15 +1137,26 @@ if(typeof ResizeObserver === 'function'){
 window.addEventListener('resize', fitClock);
 
 /* ---------------- 背景：凹面鱼眼滚动文字 ---------------- */
+/* 每一行是一条横向拼接的瓦片带，行列方向从右往左滚动；
+   每行再按「离屏幕中心的纵向距离」做水平缩放，形成凹面。 */
 
 const FISH_MIN_SCALE = 0.08;    // 强度拉满时，边缘行的水平缩放
-let fishEl = null, fishLines = [], fishScroll = 0, fishLineH = 0, fishGap = 0, fishRAF = 0, fishLast = 0;
+const FISH_TILE_GAP = '　　';   // 瓦片之间的间隔（全角空格）
+
+let fishEl = null, fishLines = [], fishScroll = 0, fishTileW = 0,
+    fishLineH = 0, fishGap = 0, fishRAF = 0, fishLast = 0;
 
 function fisheyeReduced(){
   try{ return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){ return false; }
 }
 
-// 按当前文字重建行（行数按视口高度取够，保证滚动时不露空）
+// 当前锚点自带的默认语句
+function anchorFishText(){
+  const a = ANCHORS.find(x => x.id === state.anchor);
+  return (a && a.fish) ? a.fish : '';
+}
+
+// 按当前文字重建滚动的行
 function buildFisheye(){
   fishEl = el('fisheye');
   if(!fishEl) return;
@@ -1128,10 +1168,10 @@ function buildFisheye(){
   const raw = String(state.fishText || '').trim();
   if(!raw) return;
 
-  // 先按换行拆；只有一行时重复铺满滚动带
+  // 一行一句；只有一行时按固定行数铺满视口
   let texts = raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
   if(texts.length === 1){
-    texts = new Array(14).fill(texts[0]);
+    texts = new Array(12).fill(texts[0]);
   }
 
   const fs = window.innerWidth < 600
@@ -1140,22 +1180,41 @@ function buildFisheye(){
   fishGap = window.innerWidth < 600 ? 46 : 74;
 
   for(const t of texts){
-    const d = document.createElement('div');
-    d.className = 'flakey';
-    d.textContent = t;
-    d.style.fontSize = fs;
-    fishEl.appendChild(d);
-    fishLines.push(d);
+    const line = document.createElement('div');
+    line.className = 'flakey';
+    line.style.fontSize = fs;
+    fishEl.appendChild(line);
+
+    const tile = document.createElement('span');
+    tile.className = 'ftile';
+    tile.textContent = t + FISH_TILE_GAP;
+    line.appendChild(tile);
+    fishLines.push(line);
   }
 
-  // 量一次行高，之后只用数值算，不再读布局
+  // 量出瓦片宽度与行高，之后每帧只用数值算，不再读布局
+  const t0 = fishLines[0].firstChild.getBoundingClientRect();
+  fishTileW = Math.max(24, t0.width);
   const h0 = fishLines[0].getBoundingClientRect().height || 40;
   fishLineH = h0 + fishGap;
+
+  // 每条带复制足够的瓦片覆盖视口
+  const need = Math.ceil(window.innerWidth / fishTileW) + 3;
+  for(const line of fishLines){
+    const src = line.firstChild.textContent;
+    for(let k = 1; k < need; k++){
+      const t = document.createElement('span');
+      t.className = 'ftile';
+      t.textContent = src;
+      line.appendChild(t);
+    }
+  }
+
   fishScroll = 0;
   layoutFisheye(true);
 }
 
-// 把每一行摆到自己的纵向位置，并按「离中心多远」压缩它的水平宽度
+// 摆放每一行：纵向位置 + 凹面缩放 + 横向滚动
 function layoutFisheye(snap){
   if(!fishEl || !fishLines.length) return;
   const vpH = window.innerHeight;
@@ -1167,22 +1226,20 @@ function layoutFisheye(snap){
   for(let i = 0; i < fishLines.length; i++){
     const node = fishLines[i];
     let y = i * fishLineH - fishScroll;
-    // 无缝循环
-    if(y < -fishLineH) { /* 让它在下方继续 */ }
-    y = ((y % total) + total) % total;
-    const posY = y - fishLineH;
+    y = ((y % total) + total) % total - fishLineH;
 
-    const t = Math.min(1, Math.abs((posY + fishLineH / 2) - center) / center); // 0 中心 → 1 边缘
+    // 从右往左：偏移量越负，文字越往左走；走满一个瓦片宽就无缝回接
+    const off = -((fishScroll % fishTileW) + fishTileW) % fishTileW;
+
+    const t = Math.min(1, Math.abs((y + fishLineH / 2) - center) / center); // 0 中心 → 1 边缘
     const scale = 1 + (minScale - 1) * Math.pow(t, 1.25);
     const alpha = 0.45 + 0.55 * (1 - t);   // 越靠边缘越淡，中心行最实
 
-    if(snap){
-      node.style.transform = 'translateY(' + posY + 'px) scaleX(' + scale.toFixed(4) + ')';
-      node.style.opacity = alpha.toFixed(3);
-    }else{
-      node.style.transform = 'translateY(' + posY.toFixed(1) + 'px) scaleX(' + scale.toFixed(4) + ')';
-      node.style.opacity = alpha.toFixed(3);
-    }
+    const ty = snap ? y : Math.round(y * 10) / 10;
+    node.style.transform =
+      'translate(-50%, 0) translateX(' + off.toFixed(2) + 'px) translateY(' + ty +
+      'px) scaleX(' + scale.toFixed(4) + ')';
+    node.style.opacity = alpha.toFixed(3);
   }
 }
 
@@ -1227,7 +1284,9 @@ function scheduleFishBuild(){
 
 el('fishText').addEventListener('input', e => {
   state.fishText = e.target.value;
+  state.fishFollow = false;     // 手动改过就不再被锚点覆盖
   save();
+  renderControls();
   scheduleFishBuild();
 });
 
@@ -1246,6 +1305,18 @@ el('rngFishSpeed').addEventListener('input', e => {
 
 el('btnFishToggle').onclick = () => {
   state.fishOn = state.fishOn === false;
+  save();
+  buildFisheye();
+  renderControls();
+};
+
+// 跟随锚点：重新打开时立刻套用当前锚点的默认语句
+el('btnFishFollow').onclick = () => {
+  state.fishFollow = state.fishFollow === false;
+  if(state.fishFollow !== false){
+    const t = anchorFishText();
+    if(t) state.fishText = t;
+  }
   save();
   buildFisheye();
   renderControls();
@@ -1295,11 +1366,14 @@ el('btnHelp').onclick = () => {
     就低不就高 / 永远昨天 / 永远新年。
 
 【背景文字】
-  背景那层会滚动的文字可以随便改（设置 → 背景文字）：
+  背景那层文字从右往左滚动，形状是凹面（曲面屏）：
     · 一行一句；只写一行时会自动重复铺满滚动带
-    · 凹面强度：越大，越靠上下边缘的行被压得越窄，曲面屏的凹陷感越强
+    · 凹面强度：越大，越靠上下边缘的行被压得越窄，凹陷感越强
     · 滚动速度：0 = 静止（仍保留凹面形状）
-  形状是每行独立做水平缩放实现的，所以文字变长变短都不影响凹面效果。
+    · 支持 emoji（🐳 ⏰ ❤️ 🎉…）
+  点不同的时间锚点，背景会换成该锚点自带的默认语句；
+  一旦你手动改过文字，就切换为「自定义」、不再被锚点覆盖，
+  想恢复跟随就点「默认语句 → 跟随锚点」。
   「↺ 回到真实」只重置时间相关设置，不会清掉你的背景文字。
 
   其中「我爱你」换成 520 计时：主显示是 24 小时制钟点样式的 HH:MM，
