@@ -850,7 +850,7 @@ function renderMeta(sec, extra){
               && state.mode === 'digitborrow' && state.carry === 0
               && state.hour === 'h24';
   if(isReal){
-    add('与真实时间一致', 'good');
+    add('与真实时间一致 —— 这也算一种自欺欺人', 'good');
   }else{
     const parts = [];
     if(state.anchor === 'dilate' && state.mode === 'digitborrow' && state.carry > 0)
@@ -867,7 +867,7 @@ function renderMeta(sec, extra){
     if(state.rewind)     parts.push('还早模式');
     // 只有真的偏离了真实时间才警示
     if(parts.length) add(`已改动：${parts.join(' · ')}`, 'warn');
-    else             add('与真实时间一致', 'good');
+    else             add('与真实时间一致 —— 这也算一种自欺欺人', 'good');
   }
 
   add(`引擎 <b>${state.mode === 'normalized' ? '甲 · 规范进位' : '乙 · 逐位借位'}</b>`);
@@ -1058,6 +1058,10 @@ document.addEventListener('keydown', e => { if(e.key === 'Escape') setDrawer(fal
 el('btnReal').onclick = () => {
   Object.assign(state, { anchor:'real', offset:0, round:0, rewind:false,
                          mode:'digitborrow', carry:0, num:'arabic', hour:'h24' });
+  // 「回到真实」这个动作本身也是一种自我安慰 —— 顺手把背景换成这句话
+  state.fishFollow = false;
+  state.fishText = '你回到了现实，不再自欺欺人，这是不是也是一种自欺欺人🤔';
+  buildFisheye();
   commit();
 };
 
