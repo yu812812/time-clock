@@ -94,11 +94,9 @@
   /* 字号由脚本按实际可用宽度量算后写入 --clock-size，位数变化也不会溢出 */
   .clock .tok{font-weight:800;letter-spacing:-.02em;font-size:var(--clock-size, 120px)}
   .clock .tok.sep{color:var(--dim);font-weight:600;margin:0 .04em}
-  /* 「我爱你」锚点的符号与基准点 */
-  .clock .tok.sep.love{color:#ff6b9d;font-size:calc(var(--clock-size, 120px) * .62);
-    margin:0 .1em;text-shadow:0 0 30px rgba(255,107,157,.55)}
-  .clock .tok.love420{font-size:calc(var(--clock-size, 120px) * .42);color:#ff9ec4;
-    align-self:center;letter-spacing:.02em}
+  /* 「我爱你」锚点的 ♥ 分隔符：两侧留一点空隙，读起来像钟点 */
+  .clock .tok.sep.love{color:#ff6b9d;font-size:calc(var(--clock-size, 120px) * .52);
+    margin:0 .04em;text-shadow:0 0 30px rgba(255,107,157,.55)}
   .clock .tok.suffix{font-size:clamp(15px,2.4vw,26px);font-weight:700;color:var(--acc);
     align-self:center;margin-left:.5em;border:1px solid rgba(91,140,255,.4);border-radius:999px;
     padding:.32em .8em;background:rgba(91,140,255,.1);letter-spacing:.06em;white-space:nowrap}
@@ -652,18 +650,18 @@ function render(now){
   /* ---------- 我爱你：距离 5:20 的远近 ---------- */
   if(state.anchor === 'love520'){
     const { since, near, sinceLast, nextIn } = loveOffset(sec);
-    const min = Math.floor(near / 60);          // 取整到分钟，不显示秒
+    // 主显示写成 24 小时制钟点的样子：HH:MM
+    const cdMin = Math.floor(near / 60);        // 取整到分钟，不显示秒
+    const hh = pad2(Math.floor(cdMin / 60));
+    const mm = pad2(cdMin % 60);
 
-    // 主显示：以 5:20 为中心的距离，用 ♥ 代替冒号，一眼看出不是钟点
-    clock.appendChild(numGroup(String(min)));
+    // 主显示：像钟点一样的 HH:MM，中间用 ♥ 代替冒号，一眼看出不是普通钟表
+    clock.appendChild(numGroup(enc(hh)));
     const sep = document.createElement('span');
     sep.className = 'tok sep love';
     sep.textContent = '♥';
     clock.appendChild(sep);
-    const five = document.createElement('span');
-    five.className = 'tok love420';
-    five.textContent = '5:20';
-    clock.appendChild(five);
+    clock.appendChild(numGroup(enc(mm)));
 
     renderMeta(sec, extra);
 
@@ -775,7 +773,9 @@ function renderMeta(sec, extra){
   // 「我爱你」锚点：显示距离 5:20 的方向，不显示无关的进位设置
   if(state.anchor === 'love520'){
     const { since, near, sinceLast, nextIn } = loveOffset(sec);
-    add(since ? `5:20 <b>已过</b> ${durText(near)}` : `5:20 <b>还有</b> ${durText(near)}`, 'warn');
+    const cdMin = Math.floor(near / 60);
+    const clockLike = pad2(Math.floor(cdMin / 60)) + ':' + pad2(cdMin % 60);
+    add(since ? `5:20 <b>已过</b> ${clockLike}` : `5:20 <b>还有</b> ${clockLike}`, 'warn');
     add(`上一次已过 <b>${durText(sinceLast)}</b>`);
     add(`下一次还剩 <b>${durText(nextIn)}</b>`);
     return;
@@ -1095,9 +1095,9 @@ el('btnHelp').onclick = () => {
     真实现在 / 时间膨胀 / 我爱你 / 本小时整点 /
     就低不就高 / 永远昨天 / 永远新年。
 
-  其中「我爱你」换成 520 计时：主显示是距离 5:20 还有多少分钟，
-  并标出上一次 5:20 已过多久、下一次 5:20 还剩多久。
-  一天有两个 5:20（凌晨和下午），取离现在最近的那个。
+  其中「我爱你」换成 520 计时：主显示是 24 小时制钟点样式的 HH:MM，
+  表示距离最近的 5:20 还有（或已过）多久；下面另标出上一次 5:20 已过多久、
+  下一次 5:20 还剩多久。一天有两个 5:20（凌晨和下午），取离现在最近的那个。
 
 设置自动存在浏览器本地。
 真实时间在页面底部，鼠标悬停才能勉强看清。`);
