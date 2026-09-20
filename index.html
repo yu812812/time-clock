@@ -228,6 +228,23 @@
   .widtab.on{color:#0a0f1c;background:linear-gradient(180deg,#7ea6ff,#5b8cff);font-weight:700}
   .widrow{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;width:100%;margin-top:8px}
 
+  /* 快速添加事件 */
+  .qevent{margin:12px auto 0;max-width:640px;width:100%;padding:12px 14px;border-radius:14px;
+    background:rgba(91,140,255,.1);border:1px solid rgba(91,140,255,.34);text-align:left}
+  .qevent[hidden]{display:none}
+  .qe-head{display:flex;align-items:baseline;gap:9px;margin-bottom:10px}
+  .qe-head b{font-size:13px;color:var(--text)}
+  .qe-sub{font-size:10.5px;color:var(--dim2);flex:1}
+  .qe-x{background:transparent;border:0;color:var(--dim2);font-size:13px;cursor:pointer;padding:0 2px}
+  .qe-x:hover{color:var(--text)}
+  .qe-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+  .qe-err{font-size:11.5px;color:#ff9a9a;min-height:14px}
+  .qbtn{font-family:inherit;font-size:11.5px;font-weight:700;color:#0a0f1c;
+    background:linear-gradient(180deg,#7ea6ff,#5b8cff);border:0;border-radius:999px;
+    padding:8px 16px;cursor:pointer;transition:.16s;white-space:nowrap}
+  .qbtn:hover{filter:brightness(1.08)}
+  .qbtn:active{transform:translateY(1px)}
+
   /* 主页鱼缸 */
   .fishtank{display:flex;align-items:center;gap:10px;margin:12px auto 0;
     max-width:640px;width:100%;padding:8px 14px;border-radius:14px;
@@ -517,6 +534,26 @@
       <span class="ft-label">鱼缸</span>
       <span class="ft-fish" id="fishStrip"></span>
       <span class="ft-title" id="fishStripTitle"></span>
+    </div>
+
+    <div class="qevent" id="qEvent" hidden>
+      <div class="qe-head">
+        <b>添加一件事</b>
+        <span class="qe-sub">时间 · 什么事 · 地点</span>
+        <button class="qe-x" type="button" id="qeClose" title="关闭">✕</button>
+      </div>
+      <div class="qe-row">
+        <input class="tin" id="qeName"  placeholder="高等数学 / 开会 / 取快递" style="flex:1;min-width:120px">
+        <input class="tin" id="qePlace" placeholder="地点（可留空）" style="flex:1;min-width:110px">
+      </div>
+      <div class="qe-row">
+        <input class="tin" type="date" id="qeDate" style="flex:1;min-width:130px">
+        <input class="tin" id="qeStart" placeholder="08:00" style="width:74px">
+        <span style="color:var(--dim2)">—</span>
+        <input class="tin" id="qeEnd" placeholder="09:40" style="width:74px">
+        <button class="qbtn" type="button" id="qeSave">保存</button>
+      </div>
+      <div class="qe-err" id="qeErr"></div>
     </div>
 
     <div class="fakebar" id="fakeBarWrap" hidden>
@@ -1041,7 +1078,8 @@ const DEFAULT_STATE = {
   // —— 第三层：页面上的小玩意 ——
   widOn: { freeze:true, early:true, almanac:true, busy:false, later:true, today:true,
            notify:true, glitch:true, fake:true, fw:true,
-           fish:true, weather:true, fakebar:true, online:true, terms:true },   // 哪些挂件显示
+           fish:true, weather:true, fakebar:true, online:true, terms:true,
+           addevent:true, checkin:true },   // 哪些挂件显示
   widDock: true,                                     // 小玩意条是否展开
   frozen: false,                                     // 时间冻结
   frozenFrom: '',                                    // 冻住那一刻的真实时间
@@ -1051,7 +1089,7 @@ const DEFAULT_STATE = {
   notifySeq: 0,
   lieMinTotal: 0,                                    // 累计「改动」的分钟数
   fishMode: 'work',                                  // 'work'=在页面待着 / 'lie'=累计改动
-  widGroup: 'time',                                  // 小玩意条当前分组
+  widGroup: 'log',                                   // 小玩意条当前分组（默认记录）
   fakeBar: 87,                                       // 假进度条
   disclaimer: false,                                 // 假法律条款
   weather: '',                                       // 假天气（空=按日期生成）
@@ -2019,6 +2057,7 @@ function renderControls(){
 
   // 页面小玩意
   widRender();
+  streakRender();
 }
 
 /* ---------------- 自我评价 · 自欺欺人的账本 ---------------- */
@@ -2570,6 +2609,54 @@ function termsRender(){
 }
 
 /* ---- 假进度条 ---- */
+/* ---- 快速添加事件（主页一行搞定） ---- */
+function quickEventReset(){
+  const now = new Date();
+  // 默认时间取下一个整半点，省得每次都填
+  const mins = now.getMinutes();
+  const st = new Date(now.getTime());
+  st.setMinutes(mins < 30 ? 30 : 60, 0, 0);
+  const en = new Date(st.getTime() + 40 * 60000);
+  el('qeDate').value  = dateKey(st);
+  el('qeStart').value = String(st.getHours()).padStart(2,'0') + ':' + String(st.getMinutes()).padStart(2,'0');
+  el('qeEnd').value   = String(en.getHours()).padStart(2,'0') + ':' + String(en.getMinutes()).padStart(2,'0');
+  el('qeName').value  = '';
+  el('qePlace').value = '';
+  el('qeErr').textContent = '';
+}
+
+function quickEventOpen(){
+  const box = el('qEvent');
+  if(!box) return;
+  if(box.hidden){ quickEventReset(); box.hidden = false; }
+  else box.hidden = true;
+  if(!box.hidden) el('qeName').focus();
+}
+
+function quickEventSave(){
+  const start = parseHM(el('qeStart').value);
+  const end   = parseHM(el('qeEnd').value);
+  const title = el('qeName').value.trim();
+  const err   = el('qeErr');
+  if(!title)          { err.textContent = '「什么事」不能空着'; return; }
+  if(start == null)   { err.textContent = '开始时间要写成 08:00 这样'; return; }
+  if(end == null)     { err.textContent = '结束时间要写成 09:40 这样'; return; }
+  if(end <= start)    { err.textContent = '结束时间要比开始时间晚'; return; }
+  const dk = el('qeDate').value;
+  if(!dk)             { err.textContent = '要选一个日期'; return; }
+
+  const rec = { id:'e' + Date.now() + Math.floor(Math.random() * 1000),
+                date: dk, start: el('qeStart').value.trim(), end: el('qeEnd').value.trim(),
+                title, place: el('qePlace').value.trim() };
+  state.events = eventList().slice().concat([rec]);
+  lieBump(1);
+  save();
+  el('qEvent').hidden = true;
+  commit();                       // 会刷新事件列表与挂件
+  toast('已添加「' + title + '」' + (rec.place ? ' @ ' + rec.place : '')
+        + ' —— 倒计时锚点里就能看见它');
+}
+
 /* ---- 主页鱼缸：把每条鱼都画出来 ---- */
 function fishStripRender(){
   const box = el('fishStripBox');
@@ -2686,10 +2773,13 @@ function glitchFire(){
 
 /* ---- 挂件分组 ---- */
 const WID_GROUPS = [
-  { id:'time', name:'时间', keys:['freeze','later','glitch'] },
-  { id:'mood', name:'心情', keys:['today','fish','almanac','weather'] },
-  { id:'joke', name:'玩笑', keys:['notify','online','fakebar','fake','terms','fw'] }
+  { id:'log',   name:'记录', keys:['addevent','checkin'] },
+  { id:'time',  name:'时间', keys:['freeze','later','glitch'] },
+  { id:'mood',  name:'心情', keys:['today','fish','almanac','weather'] },
+  { id:'joke',  name:'玩笑', keys:['notify','online','fakebar','fake','terms','fw'] }
 ];
+// 默认展开「记录」—— 加事件和打卡是最高频的两件事
+const WID_DEFAULT_GROUP = 'log';
 
 /* ---- 渲染 ---- */
 function widRender(){
@@ -2711,7 +2801,7 @@ function widRender(){
   tabs.className = 'widtabs';
   WID_GROUPS.forEach(g => {
     const t = document.createElement('button');
-    t.className = 'widtab' + ((state.widGroup || 'time') === g.id ? ' on' : '');
+    t.className = 'widtab' + ((state.widGroup || WID_DEFAULT_GROUP) === g.id ? ' on' : '');
     t.type = 'button';
     t.textContent = g.name;
     t.onclick = () => { state.widGroup = g.id; save(); widRender(); };
@@ -2734,7 +2824,25 @@ function widRender(){
     return b;
   };
 
-  const has = k => (WID_GROUPS.find(g => g.id === (state.widGroup || 'time')) || WID_GROUPS[0]).keys.includes(k);
+  // 只看当前分组 —— 之前写成跨组查找，导致所有挂件挤在一组里
+  const curGroup = WID_GROUPS.find(g => g.id === (state.widGroup || WID_DEFAULT_GROUP)) || WID_GROUPS[0];
+  const has = k => curGroup.keys.includes(k);
+
+  if(has('addevent'))
+    mk('addevent', '＋ 添加事件', 'on', () => { quickEventOpen(); }).title = '在主页直接加一件事，不用翻设置';
+
+  if(has('checkin')){
+    const s = streakState();
+    const done = s.last === dateKey(new Date());
+    mk('checkin', done ? '✓ 已打卡 ' + s.n + ' 天' : '✓ 打卡 +1 天', done ? 'live' : '', () => {
+      if(streakCheckIn()){
+        toast('打卡成功 —— 已连续 ' + streakState().n + ' 天');
+      }else{
+        toast('今天已经打过了 —— 再点也不会变成 ' + (streakState().n + 1) + ' 天');
+      }
+      statRender(); widRender();
+    });
+  }
 
   if(has('freeze'))
     mk('freeze', state.frozen ? '❄ 已冻结' : '❄ 时间冻结', state.frozen ? 'on' : '', () => {
@@ -3310,6 +3418,17 @@ el('btnStatReset').onclick = () => {
   save();
   statRender();
 };
+
+/* ---------------- 主页快捷操作：事件 ---------------- */
+
+el('qeSave').onclick  = quickEventSave;
+el('qeClose').onclick = () => { el('qEvent').hidden = true; };
+['qeName','qePlace','qeStart','qeEnd'].forEach(id => {
+  el(id).addEventListener('keydown', e => {
+    if(e.key === 'Enter'){ e.preventDefault(); quickEventSave(); }
+    if(e.key === 'Escape'){ el('qEvent').hidden = true; }
+  });
+});
 
 /* ---------------- 幻觉装饰：事件 ---------------- */
 
