@@ -200,6 +200,30 @@
     white-space:nowrap}
   @keyframes swim{0%,100%{transform:translateY(0) scaleX(1)}50%{transform:translateY(-3px) scaleX(-1)}}
 
+  /* 假连续打卡 */
+  .streakbox{padding:11px 13px;border-radius:11px;font-size:12.5px;line-height:1.7;
+    background:rgba(255,176,32,.09);border:1px solid rgba(255,176,32,.26);color:var(--text)}
+  .streakbox b{font-size:19px;color:#ffb020;font-variant-numeric:tabular-nums}
+
+  /* 毅力进度条 */
+  .willwrap{display:flex;align-items:center;gap:11px}
+  .willwrap .willpct{font-size:12.5px;font-weight:700;color:#9db8ff;
+    min-width:46px;text-align:right;font-variant-numeric:tabular-nums}
+  .willbar{flex:1;height:12px;border-radius:99px;transition:width .35s ease;
+    background:linear-gradient(90deg,#5b8cff,#8b5cf6);
+    box-shadow:0 0 14px rgba(91,140,255,.45);min-width:4px;
+    position:relative;overflow:hidden}
+  .willbar::after{content:"";position:absolute;inset:0;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);
+    animation:shine 2.4s linear infinite}
+  @keyframes shine{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+
+  /* 假装很忙 */
+  .bottombar .busy{color:#ffb020}
+  .bottombar .busy[hidden]{display:none}
+  .eitem .edone{font-size:10.5px;font-weight:700;color:#ffb020;
+    font-variant-numeric:tabular-nums;margin-right:2px}
+
   /* 分组：给平级项分出层次 */  .mgroup{margin-bottom:2px}
   .mgroup-head{padding:12px 18px 8px;font-size:10.5px;font-weight:800;letter-spacing:2px;
     color:var(--dim2);display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;
@@ -387,6 +411,7 @@
   <footer class="bottombar">
     <span>真实时间：<span class="real" id="realClock" title="别看了，假的更好">……</span></span>
     <span id="statChip" title="这里面有一部分时间是它替你抹掉的"></span>
+    <span id="busyChip" class="busy" hidden></span>
     <span id="fps">—</span>
   </footer>
 
@@ -641,6 +666,80 @@
         </section>
       </div>
 
+      <div class="mgroup" data-group="decor">
+        <div class="mgroup-head">幻觉装饰<span>让今天看起来像在努力</span></div>
+
+        <section class="sec" data-key="streak">
+          <button class="sec-head" type="button">假连续打卡 <span class="caret">▶</span></button>
+          <div class="sec-body">
+            <div class="streakbox" id="streakView"></div>
+            <div class="opts" style="margin-top:11px">
+              <button class="opt" type="button" id="btnStreakDo" style="padding:7px 13px"><span class="k">打卡 +1 天</span></button>
+              <button class="opt" type="button" id="btnStreakAuto" style="padding:7px 13px"><span class="k">自动补签</span></button>
+              <button class="opt" type="button" id="btnStreakReset" style="padding:7px 13px"><span class="k">清零</span></button>
+            </div>
+            <div class="hint">中间漏掉的几天会被<b>自动补签</b>，连续天数永远不断 —— 你不会看到自己断过。</div>
+          </div>
+        </section>
+
+        <section class="sec" data-key="will">
+          <button class="sec-head" type="button">毅力进度条 <span class="caret">▶</span></button>
+          <div class="sec-body">
+            <div class="willwrap">
+              <div class="willbar" id="willBar"></div>
+              <span class="willpct" id="willText">87%</span>
+            </div>
+            <div class="opts" style="margin-top:11px">
+              <button class="opt" type="button" id="btnWillBump" style="padding:7px 13px"><span class="k">再撑一点</span></button>
+              <button class="opt" type="button" id="btnWillReset" style="padding:7px 13px"><span class="k">回到 87%</span></button>
+            </div>
+            <div class="hint" id="willHint"></div>
+          </div>
+        </section>
+
+        <section class="sec" data-key="done">
+          <button class="sec-head" type="button">假完成度 <span class="caret">▶</span></button>
+          <div class="sec-body">
+            <div class="opts">
+              <button class="opt" data-done="50"  type="button" style="padding:7px 12px"><span class="k">全部 50%</span></button>
+              <button class="opt" data-done="75"  type="button" style="padding:7px 12px"><span class="k">全部 75%</span></button>
+              <button class="opt" data-done="90"  type="button" style="padding:7px 12px"><span class="k">全部 90%</span></button>
+              <button class="opt" data-done="99"  type="button" style="padding:7px 12px"><span class="k">全部 99%</span></button>
+            </div>
+            <div class="opts" style="margin-top:8px">
+              <button class="opt" type="button" id="btnDoneClear" style="padding:7px 12px"><span class="k">清空完成度</span></button>
+            </div>
+            <div class="hint" id="doneHint"></div>
+          </div>
+        </section>
+
+        <section class="sec" data-key="swap">
+          <button class="sec-head" type="button">心想事成话术 <span class="caret">▶</span></button>
+          <div class="sec-body">
+            <div class="row">
+              <label>自动美化</label>
+              <button class="opt" id="btnSwapOn" style="padding:6px 12px">关闭</button>
+            </div>
+            <label class="field" style="margin-top:11px">替换规则（每行一条，用 → 分隔）</label>
+            <textarea class="ta" id="swapText" rows="5" spellcheck="false"></textarea>
+            <div class="hint" id="swapHint"></div>
+          </div>
+        </section>
+
+        <section class="sec" data-key="busy">
+          <button class="sec-head" type="button">假装很忙 <span class="caret">▶</span></button>
+          <div class="sec-body">
+            <div class="row">
+              <label>页脚假状态</label>
+              <button class="opt" id="btnBusyOn" style="padding:6px 12px">关闭</button>
+            </div>
+            <label class="field" style="margin-top:11px">状态文案（每行一条）</label>
+            <textarea class="ta" id="busyText" rows="5" spellcheck="false"></textarea>
+            <div class="hint" id="busyHint"></div>
+          </div>
+        </section>
+      </div>
+
 </div>
 
   <div class="drawer-foot">
@@ -776,6 +875,32 @@ const DEFAULT_STATE = {
   statOn: true,          // 开启「走神不算数」
   statChip: true,        // 页面底部显示今日小标签
   idleSec: 45,           // 静置多少秒算走神
+
+  // —— 第二层：幻觉装饰 ——
+  streak: { n: 0, best: 0, last: '', auto: true },   // 假连续打卡
+  will: { pct: 87 },                                 // 毅力进度条
+  doneMap: {},                                       // { 事件id: 百分比 }
+  doneDefault: 90,
+  swap: false,                                       // 心想事成话术开关
+  swapDefs: [
+    '不想写代码 → 正在突破舒适区',
+    '在摸鱼 → 进行深度思考',
+    '还有时间 → 时间还很充裕',
+    '不慌 → 节奏很稳',
+    '慢慢来 → 按自己的节奏走',
+    '属于误差 → 属于合理区间',
+    '偷回来的 → 省下来的',
+    '拖了很久 → 稳扎稳打'
+  ].join('\n'),
+  busy: false,                                       // 假装很忙
+  busyDefs: [
+    '正在同步数据…',
+    '正在校验接口…',
+    '正在生成报表…',
+    '正在整理会议纪要…',
+    '正在对齐需求…',
+    '正在跑回归测试…'
+  ].join('\n'),
 
   fishText:'⏳ 时间还早 · 再撑一会儿 · 一天有 36 小时 🐳',
   fishStrength:0.45,
@@ -987,20 +1112,20 @@ function render(now){
     renderDateLine(line);
 
     if(nl.kind === 'none'){
-      el('soothe').innerHTML = '还没有安排。<em>没安排的日子，天天都是假期。</em>';
+      el('soothe').innerHTML = lieRewrite('还没有安排。<em>没安排的日子，天天都是假期。</em>');
     }else if(nl.kind === 'during'){
-      el('soothe').innerHTML = state.hideWarning
+      el('soothe').innerHTML = lieRewrite(state.hideWarning
         ? '正在进行中，安心待着就好。'
-        : '正在进行 —— 不过<em>' + cd.big + '</em> 秒之后就结束了，也不算太久。';
+        : '正在进行 —— 不过<em>' + cd.big + '</em> 秒之后就结束了，也不算太久。');
     }else{
       const e = nl.ev || {};
       const near = (nl.seconds <= 3600);
-      el('soothe').innerHTML = state.hideWarning
+      el('soothe').innerHTML = lieRewrite(state.hideWarning
         ? '还有时间，不慌。'
         : (near
             ? '只剩 <em>' + cd.big + '</em> 秒了 —— 听着很多，其实是 <em>'
               + Math.max(1, Math.round(nl.seconds / 60)) + ' 分钟</em>。（数字大而已）'
-            : '还有 <em>' + cd.big + '</em> ' + cd.unit + ' 才到<em>' + (e.title || '这件事') + '</em>，慢慢来。');
+            : '还有 <em>' + cd.big + '</em> ' + cd.unit + ' 才到<em>' + (e.title || '这件事') + '</em>，慢慢来。'));
     }
     fitClock();
     return;
@@ -1073,7 +1198,7 @@ function render(now){
 
     renderMeta(sec, extra);
     renderDateLine(`${OLD_MON[d.getMonth()]}${OLD_DAY[d.getDate() - 1]} · ${classicYear(d.getFullYear())}`);
-    el('soothe').innerHTML = sootheText(sec, d);
+    el('soothe').innerHTML = lieRewrite(sootheText(sec, d));
     fitClock();
     return;
   }
@@ -1106,7 +1231,7 @@ function render(now){
 
   renderMeta(sec, extra);
   renderDateLine(`${d.getMonth() + 1} 月 ${d.getDate()} 日 · 周${WEEK_CN[d.getDay()]}`);
-  el('soothe').innerHTML = sootheText(sec, d);
+  el('soothe').innerHTML = lieRewrite(sootheText(sec, d));
   fitClock();
 }
 
@@ -1407,6 +1532,13 @@ function eventListViewRender(){
 
     const right = document.createElement('div');
     right.className = 'eright';
+    const dPct = doneOf(e.id);
+    if(typeof dPct === 'number'){
+      const dd = document.createElement('div');
+      dd.className = 'edone';
+      dd.textContent = dPct + '%';
+      right.appendChild(dd);
+    }
     const cnt = document.createElement('div');
     cnt.className = 'ecount';
     cnt.textContent = secs === Infinity ? '已过期'
@@ -1704,6 +1836,9 @@ function renderControls(){
 
   // 自我评价
   statRender();
+
+  // 幻觉装饰
+  lieDecorRender();
 }
 
 /* ---------------- 自我评价 · 自欺欺人的账本 ---------------- */
@@ -1902,6 +2037,225 @@ function statRender(){
   }
 }
 
+/* ---------------- 幻觉装饰（第二层） ---------------- */
+/* 假连续打卡 / 毅力进度条 / 假完成度 / 心想事成话术 / 假装很忙 */
+
+/* ---- 通用小工具 ---- */
+function shiftDay(n){
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return dateKey(d);
+}
+function linesOf(s){
+  return String(s == null ? '' : s).split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+}
+
+/* ---- ① 假连续打卡 ---- */
+function streakState(){
+  if(!state.streak || typeof state.streak !== 'object')
+    state.streak = { n:0, best:0, last:'', auto:true };
+  const s = state.streak;
+  if(typeof s.n !== 'number') s.n = 0;
+  if(typeof s.best !== 'number') s.best = 0;
+  if(typeof s.last !== 'string') s.last = '';
+  if(s.auto === undefined) s.auto = true;
+  return s;
+}
+
+// 自动补签：昨天没打过卡就悄悄补上，连续天数不断
+function streakCatchUp(){
+  const s = streakState();
+  if(!s.auto) return;
+  const today = dateKey(new Date());
+  if(s.last === today) return;
+  if(s.last === shiftDay(-1)) return;          // 昨天打过，今天还没打，正常
+  if(!s.last) return;                          // 从没打过，不补
+  // 中间缺了几天 → 自动补签，把连续天数接上
+  const gap = Math.round((new Date(today) - new Date(s.last)) / 86400000);
+  if(gap > 1){
+    s.n += 1;                                   // 就当中间也一直在
+    s.last = shiftDay(-1);                      // 视为昨天刚打过
+    s.autoFilled = (s.autoFilled || 0) + (gap - 1);
+    lieBump(1);
+    save();
+  }
+}
+
+function streakCheckIn(){
+  const s = streakState();
+  const today = dateKey(new Date());
+  if(s.last === today) return false;            // 今天已经打过
+  s.n = (s.last === shiftDay(-1)) ? s.n + 1 : 1;
+  s.last = today;
+  if(s.n > s.best) s.best = s.n;
+  lieBump(1);                                   // 打卡也算一次自欺
+  save();
+  return true;
+}
+
+function streakRender(){
+  const s = streakState();
+  const today = dateKey(new Date());
+  const box = el('streakView');
+  if(box){
+    const done = s.last === today;
+    box.innerHTML = '已连续 <b>' + s.n + '</b> 天'
+      + (s.best > s.n ? '（最高 ' + s.best + '）' : '')
+      + '<br><span style="color:var(--dim2)">' + (done ? '今天已打卡 ✓' : '今天还没打卡')
+      + (s.autoFilled ? ' · 已自动补签 ' + s.autoFilled + ' 天' : '') + '</span>';
+  }
+  const b = el('btnStreakDo');
+  if(b){
+    b.textContent = s.last === today ? '今天已打卡' : '打卡 +1 天';
+    b.classList.toggle('on', s.last === today);
+  }
+  const all = el('btnStreakAuto');
+  if(all){
+    all.textContent = s.auto !== false ? '自动补签' : '不补签';
+    all.classList.toggle('on', s.auto !== false);
+  }
+  const dn = el('btnStreakReset');
+  if(dn) dn.textContent = '清零';
+}
+
+/* ---- ② 毅力进度条 ---- */
+function willState(){
+  if(!state.will || typeof state.will !== 'object') state.will = { pct: 87 };
+  if(typeof state.will.pct !== 'number') state.will.pct = 87;
+  return state.will;
+}
+// 加一点，但永远不给满 —— 满了就没有努力空间了
+function willBump(n){
+  const w = willState();
+  w.pct = Math.min(98, Math.round((w.pct + (n || 0.4)) * 10) / 10);
+  save();
+}
+function willRender(){
+  const w = willState();
+  const bar = el('willBar');
+  if(bar){
+    bar.style.width = w.pct + '%';
+    bar.style.background = w.pct >= 90
+      ? 'linear-gradient(90deg,#3ddc97,#5b8cff)'
+      : 'linear-gradient(90deg,#5b8cff,#8b5cf6)';
+  }
+  const t = el('willText');
+  if(t){
+    t.textContent = w.pct + '%';
+  }
+  const h = el('willHint');
+  if(h){
+    h.innerHTML = w.pct >= 98
+      ? '已经 <b>98%</b> 了 —— 满了就没有努力空间，所以它不会再涨。'
+      : '随时可以再撑一点。<b>永远不会到 100%</b> —— 那样就没有努力的空间了。';
+  }
+}
+
+/* ---- ③ 假完成度 ---- */
+function ensureDone(){
+  if(!state.doneMap || typeof state.doneMap !== 'object') state.doneMap = {};
+  return state.doneMap;
+}
+function doneOf(id){
+  const m = ensureDone();
+  const v = m[id];
+  return (typeof v === 'number') ? v : null;
+}
+function doneFillAll(pct){
+  const m = ensureDone();
+  const list = eventList();
+  if(!list.length) return 0;
+  list.forEach(e => { m[e.id] = pct; });
+  state.doneDefault = pct;
+  lieBump(1);
+  save();
+  return list.length;
+}
+function doneRender(){
+  const box = el('doneHint');
+  if(!box) return;
+  const m = ensureDone();
+  const list = eventList();
+  const set = list.filter(e => typeof m[e.id] === 'number').length;
+  box.innerHTML = '已给 <b>' + set + '/' + list.length + '</b> 件事挂了完成度。'
+    + (list.length ? '' : '<br>先去【事件列表】加几件事。');
+}
+
+/* ---- ④ 心想事成话术 ---- */
+function swapPairs(){
+  if(!state.swap) return [];
+  return linesOf(state.swapDefs).map(l => {
+    const i = l.indexOf('→');
+    if(i < 0) return null;
+    const a = l.slice(0, i).trim();
+    const b = l.slice(i + 1).trim();
+    return (a && b) ? [a, b] : null;
+  }).filter(Boolean);
+}
+// 显示前偷偷替换措辞
+function lieRewrite(s){
+  const pairs = swapPairs();
+  if(!pairs.length) return s;
+  let out = String(s);
+  for(const [a, b] of pairs) out = out.split(a).join(b);
+  return out;
+}
+function swapRender(){
+  const ta = el('swapText');
+  if(ta && ta.value !== state.swapDefs) ta.value = state.swapDefs || '';
+  const on = el('btnSwapOn');
+  if(on){
+    on.textContent = state.swap ? '已开启' : '关闭';
+    on.classList.toggle('on', !!state.swap);
+  }
+  const pairs = swapPairs();
+  const h = el('swapHint');
+  if(h){
+    if(!state.swap){
+      h.innerHTML = '开启后，页面上那些安慰话会先经过替换 —— 难听的说法自动变成好听的。';
+    }else{
+      const demo = '还有时间，属于误差，慢慢来';
+      h.innerHTML = '当前有 <b>' + pairs.length + '</b> 条规则。效果预览：<br>'
+        + '<span style="color:var(--dim2)">' + demo + '</span><br>↓<br>'
+        + '<span style="color:#3ddc97">' + lieRewrite(demo) + '</span>';
+    }
+  }
+}
+
+/* ---- ⑤ 假装很忙 ---- */
+let busySeq = 0;
+function busyRender(){
+  const chip = el('busyChip');
+  if(!chip) return;
+  const list = linesOf(state.busyDefs);
+  if(!state.busy || !list.length){
+    chip.hidden = true; chip.textContent = '';
+    return;
+  }
+  chip.hidden = false;
+  const i = busySeq % list.length;
+  const pct = 18 + Math.round(Math.abs(Math.sin(busySeq / 7)) * 74);
+  chip.textContent = '⚙ ' + list[i] + ' ' + pct + '%';
+  const on = el('btnBusyOn');
+  if(on){
+    on.textContent = state.busy ? '已开启' : '关闭';
+    on.classList.toggle('on', !!state.busy);
+  }
+  const ta = el('busyText');
+  if(ta && ta.value !== state.busyDefs) ta.value = state.busyDefs || '';
+  const h = el('busyHint');
+  if(h) h.innerHTML = '页脚会滚动显示这些假状态（共 <b>' + list.length + '</b> 条），进度永远不到 100%。';
+}
+
+function lieDecorRender(){
+  streakCatchUp();
+  streakRender();
+  willRender();
+  doneRender();
+  swapRender();
+  busyRender();
+}
+
 /* ---------------- 设置抽屉 / 折叠分区 ---------------- */
 
 const drawer  = el('drawer');
@@ -1921,6 +2275,7 @@ const DEFAULT_OPEN = { display:true, carryHow:false, carryAmt:false, hourSys:fal
                         numText:false, rewind:false,
                         events:true, skipdays:false, cheatCtl:false,
                         tank:false, stat:false,
+                        streak:false, will:false, done:false, swap:false, busy:false,
                         bg:false };
 
 const allSecs = [...document.querySelectorAll('.drawer-body .sec')];
@@ -2362,6 +2717,68 @@ el('btnStatReset').onclick = () => {
   statRender();
 };
 
+/* ---------------- 幻觉装饰：事件 ---------------- */
+
+el('btnStreakDo').onclick = () => {
+  if(streakCheckIn()) alert('打卡成功 —— 已连续 ' + streakState().n + ' 天。\n\n（其实它并不在意你今天做了什么。）');
+  else alert('今天已经打过卡了。\n再打一次也不会变成 2 天 —— 这个它倒是挺诚实。');
+  statRender(); streakRender();
+};
+
+el('btnStreakAuto').onclick = () => {
+  const s = streakState();
+  s.auto = s.auto === false;
+  save(); streakRender();
+};
+
+el('btnStreakReset').onclick = () => {
+  if(!confirm('把连续打卡清零？')) return;
+  state.streak = { n:0, best:0, last:'', auto: streakState().auto, autoFilled:0 };
+  save(); streakRender();
+};
+
+el('btnWillBump').onclick = () => { willBump(0.4); willRender(); };
+el('btnWillReset').onclick = () => { willState().pct = 87; save(); willRender(); };
+
+document.querySelectorAll('[data-done]').forEach(b => {
+  b.onclick = () => {
+    const pct = Number(b.dataset.done);
+    const n = doneFillAll(pct);
+    document.querySelectorAll('[data-done]').forEach(x => x.classList.toggle('on', x === b));
+    if(!n) alert('还没有事件可以挂完成度 —— 先去【事件列表】加几件事。');
+    doneRender(); eventListViewRender();
+  };
+});
+el('btnDoneClear').onclick = () => {
+  state.doneMap = {};
+  document.querySelectorAll('[data-done]').forEach(x => x.classList.remove('on'));
+  save(); doneRender(); eventListViewRender();
+};
+
+el('btnSwapOn').onclick = () => {
+  state.swap = !state.swap;
+  save();
+  swapRender();
+  render(new Date());          // 立刻看到效果
+};
+el('swapText').addEventListener('input', e => {
+  state.swapDefs = e.target.value;
+  save();
+  swapRender();
+  render(new Date());
+});
+
+el('btnBusyOn').onclick = () => {
+  state.busy = !state.busy;
+  save();
+  busyRender();
+};
+el('busyText').addEventListener('input', e => {
+  state.busyDefs = e.target.value;
+  save();
+  busyRender();
+});
+
 el('btnRewind').onclick = () => {
   state.rewind = !state.rewind;
   if(state.rewind){
@@ -2468,6 +2885,7 @@ render(new Date());
 startFisheye();
 startStats();
 setInterval(statRender, 5000);
+setInterval(() => { if(state.busy){ busySeq++; busyRender(); } }, 2600);
 requestAnimationFrame(loop);
 </script>
 </body>
