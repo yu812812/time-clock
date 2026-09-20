@@ -219,6 +219,40 @@
   .wid.live{color:#3ddc97;border-color:rgba(61,220,151,.35);background:rgba(61,220,151,.1)}
   .wid.dock{padding:6px 11px;font-weight:700}
 
+  /* 挂件分组 */
+  .widtabs{display:inline-flex;gap:3px;background:rgba(255,255,255,.04);
+    border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:3px}
+  .widtab{font-family:inherit;font-size:11px;color:var(--dim2);background:transparent;
+    border:0;border-radius:999px;padding:4px 11px;cursor:pointer;transition:.15s}
+  .widtab:hover{color:var(--text)}
+  .widtab.on{color:#0a0f1c;background:linear-gradient(180deg,#7ea6ff,#5b8cff);font-weight:700}
+  .widrow{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;width:100%;margin-top:8px}
+
+  /* 假进度条 */
+  .fakebar{display:flex;align-items:center;gap:9px;margin:10px auto 2px;
+    max-width:520px;width:100%;padding:7px 12px;border-radius:999px;
+    background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);font-size:11px}
+  .fakebar[hidden]{display:none}
+  .fb-label{color:var(--dim2);white-space:nowrap}
+  .fb-track{flex:1;height:6px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;min-width:60px}
+  .fb-track i{display:block;height:100%;border-radius:99px;transition:width .3s ease;
+    background:linear-gradient(90deg,#5b8cff,#8b5cf6)}
+  .fb-pct{color:#9db8ff;font-weight:700;font-variant-numeric:tabular-nums}
+  .fb-note{color:var(--dim2);white-space:nowrap}
+  @media(max-width:640px){ .fb-note{display:none} }
+
+  /* 假在线人数 */
+  .bottombar .online{color:#8b5cf6}
+  .bottombar .online[hidden]{display:none}
+
+  /* 假法律条款 */
+  .terms{position:fixed;left:0;right:0;bottom:0;z-index:38;overflow:hidden;
+    background:linear-gradient(180deg,rgba(6,9,17,.86),rgba(6,9,17,.96));
+    border-top:1px solid rgba(255,255,255,.07);height:26px;display:flex;align-items:center}
+  .terms[hidden]{display:none}
+  .terms-inner{white-space:nowrap;font-size:10.5px;color:var(--dim2);will-change:transform}
+  .terms-inner b{color:#9db8ff}
+
   /* 时间冻结 */
   .clock.frozen{filter:saturate(.5) brightness(.92)}
   .clock.frozen::after{
@@ -458,6 +492,13 @@
     </div>
     <div class="widbar" id="widBar"></div>
 
+    <div class="fakebar" id="fakeBarWrap" hidden>
+      <span class="fb-label">同步中</span>
+      <span class="fb-track"><i id="fakeBarFill"></i></span>
+      <span class="fb-pct" id="fakeBarText">87%</span>
+      <span class="fb-note" id="fakeBarNote"></span>
+    </div>
+
     <div class="stage-foot">
       <div class="dateline" id="dateLine"></div>
       <div class="chips" id="meta"></div>
@@ -474,11 +515,16 @@
     <div class="wtoast" id="wToast" hidden></div>
   </main>
 
+  <div class="terms" id="termsBar" hidden>
+    <div class="terms-inner" id="termsInner"></div>
+  </div>
+
   <!-- ================= 底栏：只留真实时间参照 ================= -->
   <footer class="bottombar">
     <span>真实时间：<span class="real" id="realClock" title="别看了，假的更好">……</span></span>
     <span id="statChip" title="这里面有一部分时间是它替你抹掉的"></span>
     <span id="busyChip" class="busy" hidden></span>
+    <span id="onlineChip" class="online" hidden></span>
     <span id="fps">—</span>
   </footer>
 
@@ -704,6 +750,11 @@
           <button class="sec-head" type="button">专注鱼缸 <span class="caret">▶</span></button>
           <div class="sec-body">
             <div class="tank" id="tankView"></div>
+            <div class="row" style="margin-top:12px">
+              <label>怎么长鱼</label>
+              <button class="opt" id="btnFishMode" style="padding:6px 12px">按在页面时间</button>
+            </div>
+            <div class="hint" id="fishHint"></div>
             <div class="hint" id="tankHint">在页面上待着就长鱼 —— 什么都不用做。</div>
           </div>
         </section>
@@ -962,7 +1013,8 @@ const DEFAULT_STATE = {
   busy: false,                                       // 假装很忙
   // —— 第三层：页面上的小玩意 ——
   widOn: { freeze:true, early:true, almanac:true, busy:false, later:true, today:true,
-           notify:true, glitch:true, fake:true, fw:true },   // 哪些挂件显示
+           notify:true, glitch:true, fake:true, fw:true,
+           fish:true, weather:true, fakebar:true, online:true, terms:true },   // 哪些挂件显示
   widDock: true,                                     // 小玩意条是否展开
   frozen: false,                                     // 时间冻结
   frozenFrom: '',                                    // 冻住那一刻的真实时间
@@ -970,6 +1022,12 @@ const DEFAULT_STATE = {
   fake: false,                                       // 假系统更新遮罩
   freezeAt: 0,
   notifySeq: 0,
+  lieMinTotal: 0,                                    // 累计「改动」的分钟数
+  fishMode: 'work',                                  // 'work'=在页面待着 / 'lie'=累计改动
+  widGroup: 'time',                                  // 小玩意条当前分组
+  fakeBar: 87,                                       // 假进度条
+  disclaimer: false,                                 // 假法律条款
+  weather: '',                                       // 假天气（空=按日期生成）
 
   busyDefs: [
     '正在同步数据…',
@@ -1976,7 +2034,25 @@ function pruneStats(){
   drop.forEach(k => { delete state.stats[k]; });
 }
 
-function fishCount(sec){ return Math.min(24, Math.floor(sec / FISH_PER_SEC)); }
+// 累计「改动」：把「还早」和「时光倒流」都算进去
+function lieMinAdd(n){
+  n = Number(n) || 0;
+  if(n <= 0) return;
+  state.lieMinTotal = Math.max(0, (Number(state.lieMinTotal) || 0) + n);
+  save();
+}
+function lieMinNow(){ return Number(state.lieMinTotal) || 0; }
+
+// 鱼缸两种算法：在页面上待着，或累计改动
+function fishCount(sec){
+  if(state.fishMode === 'lie') return Math.min(24, Math.floor(lieMinNow() / 20));
+  return Math.min(24, Math.floor(sec / FISH_PER_SEC));
+}
+function fishNeed(sec){
+  if(state.fishMode === 'lie')
+    return { unit:'分钟', left: 20 - (lieMinNow() % 20), label:'改动' };
+  return { unit:'时间', left: Math.ceil((FISH_PER_SEC - (sec % FISH_PER_SEC)) / 60), label:'待着' };
+}
 
 function fishTitle(n){
   if(n <= 0) return '';
@@ -2083,7 +2159,9 @@ function statRender(){
     if(n <= 0){
       const e = document.createElement('span');
       e.className = 'empty';
-      e.textContent = '缸里还空着 —— 在页面上待够 20 分钟就来第一条 🐟';
+      e.textContent = state.fishMode === 'lie'
+        ? '缸里还空着 —— 累计改动满 20 分钟就来第一条 🐟'
+        : '缸里还空着 —— 在页面上待够 20 分钟就来第一条 🐟';
       tank.appendChild(e);
     }else{
       for(let i = 0; i < n; i++){
@@ -2097,14 +2175,34 @@ function statRender(){
       t.textContent = fishTitle(n);
       tank.appendChild(t);
     }
+    const isLie = state.fishMode === 'lie';
+    const need  = fishNeed(s.elapsed);
     const hint = el('tankHint');
     if(hint){
       const next = n < 24
-        ? '再待 ' + fmtDur(Math.max(0, (n + 1) * FISH_PER_SEC - s.elapsed)) + ' 就该多一条了。'
+        ? '再' + need.label + ' ' + need.left + ' ' + need.unit + '就该多一条了。'
         : '缸满了 —— 今天你已经足够"努力"。';
       hint.textContent = n > 0
-        ? '今天 ' + n + ' 条鱼。' + next + ' 它们什么都不会做，只负责证明你在这儿。'
-        : '在页面上待着就长鱼 —— 什么都不用做。';
+        ? '今天 ' + n + ' 条鱼。' + next + ' 它们什么都不会做，只负责证明你'
+          + (isLie ? '改过时间。' : '在这儿。')
+        : (isLie ? '把时间往后拨、点「还早」，累计满 20 分钟就长一条鱼 —— 什么正事都不用做。'
+                 : '在页面上待着就长鱼 —— 什么都不用做。');
+    }
+  }
+
+  // 算法切换按钮与说明（抽屉收起时也要更新，所以放在 if(tank) 外面）
+  {
+    const isLie = state.fishMode === 'lie';
+    const mb = el('btnFishMode');
+    if(mb){
+      mb.textContent = isLie ? '按累计改动' : '按在页面时间';
+      mb.classList.toggle('on', isLie);
+    }
+    const fh = el('fishHint');
+    if(fh){
+      fh.innerHTML = isLie
+        ? '当前按「累计改动」算：已累计往回过 <b>' + lieMinNow() + ' 分钟</b>（含「还早」和「时光倒流」）。'
+        : '当前按「在页面时间」算：今天在页面上 <b>' + fmtDur(s.elapsed) + '</b>。';
     }
   }
 
@@ -2352,9 +2450,9 @@ function lieDecorRender(){
 }
 
 /* ---------------- 页面小玩意（第三层） ---------------- */
-/* 这些东西不藏在设置里，直接摆在主显示下面 —— 一眼看得见，点一下就用 */
+/* 不藏在设置里，直接摆在主显示下面；按「时间 / 心情 / 玩笑」分组，一次显示一组 */
 
-// 「还早」按钮把显示推后 5 分钟；时间冻结把 now 定住
+// 「还早」按钮把显示推后；时间冻结把 now 定住
 function lieNow(d){
   return new Date(d.getTime() + (Number(state.laterMin) || 0) * 60000);
 }
@@ -2384,23 +2482,87 @@ const ALMANAC = [
 ];
 function almanacToday(){
   const d = new Date();
-  const i = (d.getFullYear() * 372 + d.getMonth() * 31 + d.getDate()) % ALMANAC.length;
-  return ALMANAC[i];
+  return ALMANAC[(d.getFullYear() * 372 + d.getMonth() * 31 + d.getDate()) % ALMANAC.length];
 }
 
-/* ---- 通知模拟器（也是假的） ---- */
-const NOTIFS = [
-  '刚刚：你已连续专注 47 分钟 ✓',
-  '刚刚：今天的目标完成 92% ✓',
-  '刚刚：比昨天进步了 12% ✓',
-  '刚刚：已为你跳过 3 条不想看的事 ✓',
-  '刚刚：注意力评分 98 分 · 全站前 1% ✓'
+/* ---- 假天气预报 ---- */
+const WMO = [
+  ['🌧', '小雨', '适合待在室内'], ['⛅', '多云', '光线正好'],
+  ['☀️', '晴', '适合出门走走'],     ['🌫', '有雾', '看不清也没关系'],
+  ['🌬', '有风', '把烦恼吹走'],     ['🌙', '夜间多云', '该睡了（或者再刷一会儿）']
 ];
-function notifyNext(){
-  const i = (Number(state.notifySeq) || 0) % NOTIFS.length;
-  state.notifySeq = i + 1;
-  save();
-  toast(NOTIFS[i].replace('刚刚：', ''));
+function weatherToday(){
+  if(state.weather) return state.weather;
+  const d = new Date();
+  const w = WMO[(d.getFullYear() * 372 + d.getMonth() * 31 + d.getDate()) % WMO.length];
+  return w[0] + ' ' + w[1] + ' ' + (16 + (d.getDate() % 12)) + '° · ' + w[2];
+}
+
+/* ---- 假在线人数 ---- */
+function onlineNow(){
+  const d = new Date();
+  return 3 + (d.getHours() * 7 + d.getMinutes()) % 26;
+}
+
+/* ---- 假法律条款 ---- */
+const TERMS = [
+  '本页面不对时间的真实性作出任何承诺。',
+  '继续浏览即视为您同意继续自欺。',
+  '所有被抹掉的时间均已妥善保管（并没有）。',
+  '「还早」不构成任何形式的延期承诺。',
+  '本页面的每一秒都由您本人允许显示。',
+  '如与现实时间不符 —— 那是现实的排版问题。',
+  '本免责声明本身也是免责的。'
+];
+let termsRAF = 0;
+function termsRender(){
+  const bar = el('termsBar');
+  if(!bar) return;
+  if(!state.disclaimer){
+    bar.hidden = true;
+    if(termsRAF) cancelAnimationFrame(termsRAF);
+    termsRAF = 0; bar.dataset.done = '';
+    return;
+  }
+  bar.hidden = false;
+  if(bar.dataset.done) return;
+  bar.dataset.done = '1';
+  const inner = el('termsInner');
+  inner.innerHTML = TERMS.map((t, k) => '<b>§ ' + (k + 1) + '</b> ' + t).join('　　·　　') + '　　·　　';
+  let x = window.innerWidth || 400;
+  const step = () => {
+    if(!state.disclaimer){ bar.hidden = true; termsRAF = 0; bar.dataset.done = ''; return; }
+    x -= 0.6;
+    if(x < -(inner.scrollWidth || 600)) x = window.innerWidth || 400;
+    inner.style.transform = 'translateX(' + Math.round(x) + 'px)';
+    termsRAF = requestAnimationFrame(step);
+  };
+  termsRAF = requestAnimationFrame(step);
+}
+
+/* ---- 假进度条 ---- */
+function fakeBarRender(){
+  const wrap = el('fakeBarWrap');
+  if(!wrap) return;
+  const on = state.widOn || {};
+  if(on.fakebar === false){ wrap.hidden = true; return; }
+  wrap.hidden = false;
+  const pct = Number(state.fakeBar) || 87;
+  el('fakeBarFill').style.width = pct + '%';
+  el('fakeBarText').textContent = pct + '%';
+  el('fakeBarNote').textContent = pct >= 98
+    ? '满了就没有努力空间 —— 所以它停在这'
+    : '别关，快好了（它一直这么说）';
+}
+
+/* ---- 假在线人数（页脚） ---- */
+function onlineRender(){
+  const b = el('onlineChip');
+  if(!b) return;
+  const on = state.widOn || {};
+  if(on.online === false){ b.hidden = true; return; }
+  b.hidden = false;
+  b.textContent = '👥 此刻 ' + onlineNow() + ' 人也在假装努力';
 }
 
 /* ---- 假系统更新 ---- */
@@ -2409,14 +2571,10 @@ function fakeUpdate(){
   if(!box || !bar) return;
   state.fake = true; save();
   box.hidden = false;
-  let v = 0;
-  const total = 4200;
-  const t0 = performance.now();
+  const total = 4200, t0 = performance.now();
   const step = () => {
     const k = Math.min(1, (performance.now() - t0) / total);
-    // 永远卡在 99% 之前
-    v = Math.round(Math.min(0.99, k) * 100);
-    bar.style.width = v + '%';
+    bar.style.width = Math.round(Math.min(0.99, k) * 100) + '%';
     if(k < 1) requestAnimationFrame(step);
     else {
       box.hidden = true;
@@ -2430,64 +2588,85 @@ function fakeUpdate(){
 
 /* ---- 花屏 ---- */
 const GLITCH_CHARS = '0123456789·:.＃▒▓█';
-// 拿随机字符刷一下钟面
 function glitchRender(){
   const clock = el('clock');
   if(!clock) return;
   clock.innerHTML = '';
   let txt = '';
-  for(let i = 0; i < 5; i++) txt += GLITCH_CHARS[Math.floor(Math.random() * GLITCH_CHARS.length)];
+  for(let k = 0; k < 5; k++) txt += GLITCH_CHARS[Math.floor(Math.random() * GLITCH_CHARS.length)];
   clock.appendChild(numGroup(txt));
   clock.style.opacity = (0.35 + Math.random() * 0.5).toFixed(2);
 }
-// 触发一次：覆盖层闪 + 钟面乱码，0.42 秒后自己恢复
 function glitchFire(){
-  if(!state.glitchUntil){
-    state.glitchUntil = Date.now() + 420;
-    const s = el('fuScreen');
-    if(s){
-      s.hidden = false;
-      setTimeout(() => { s.hidden = true; }, 380);
-    }
-    setTimeout(() => {
-      state.glitchUntil = 0;
-      const c = el('clock');
-      if(c) c.style.opacity = '';
-      render(new Date());
-    }, 470);
-  }
+  if(state.glitchUntil) return;
+  state.glitchUntil = Date.now() + 420;
+  const s = el('fuScreen');
+  if(s){ s.hidden = false; setTimeout(() => { s.hidden = true; }, 380); }
+  setTimeout(() => {
+    state.glitchUntil = 0;
+    const c = el('clock');
+    if(c) c.style.opacity = '';
+    render(new Date());
+  }, 470);
 }
+
+/* ---- 挂件分组 ---- */
+const WID_GROUPS = [
+  { id:'time', name:'时间', keys:['freeze','later','glitch'] },
+  { id:'mood', name:'心情', keys:['today','fish','almanac','weather'] },
+  { id:'joke', name:'玩笑', keys:['notify','online','fakebar','fake','terms','fw'] }
+];
 
 /* ---- 渲染 ---- */
 function widRender(){
   const bar = el('widBar');
   if(!bar) return;
   const on = state.widOn || {};
-  const keep = state.frozen;
   bar.innerHTML = '';
 
+  const dock = document.createElement('button');
+  dock.className = 'wid dock' + (state.widDock === false ? '' : ' on');
+  dock.type = 'button';
+  dock.textContent = state.widDock === false ? '🧰 小玩意' : '🧰 收起';
+  dock.onclick = () => { state.widDock = state.widDock === false; save(); widRender(); };
+  bar.appendChild(dock);
+
+  if(state.widDock === false){ fakeBarRender(); onlineRender(); termsRender(); return; }
+
+  const tabs = document.createElement('span');
+  tabs.className = 'widtabs';
+  WID_GROUPS.forEach(g => {
+    const t = document.createElement('button');
+    t.className = 'widtab' + ((state.widGroup || 'time') === g.id ? ' on' : '');
+    t.type = 'button';
+    t.textContent = g.name;
+    t.onclick = () => { state.widGroup = g.id; save(); widRender(); };
+    tabs.appendChild(t);
+  });
+  bar.appendChild(tabs);
+
+  const row = document.createElement('span');
+  row.className = 'widrow';
+  bar.appendChild(row);
+
   const mk = (key, label, cls, fn) => {
+    if(on[key] === false) return null;
     const b = document.createElement('button');
     b.className = 'wid' + (cls ? ' ' + cls : '');
     b.type = 'button';
     b.textContent = label;
     b.onclick = fn;
-    bar.appendChild(b);
+    row.appendChild(b);
     return b;
   };
 
-  // 总开关放最前
-  mk('dock', state.widDock === false ? '🧰 小玩意 (' + Object.values(on).filter(Boolean).length + ')'
-                                     : '🧰 收起',
-     'dock', () => { state.widDock = state.widDock === false; save(); widRender(); });
+  const has = k => (WID_GROUPS.find(g => g.id === (state.widGroup || 'time')) || WID_GROUPS[0]).keys.includes(k);
 
-  if(state.widDock === false) return;      // 收起时只留总开关
-
-  if(on.freeze !== false)
-    mk('freeze', keep ? '❄ 已冻结' : '❄ 时间冻结', keep ? 'on' : '', () => {
+  if(has('freeze'))
+    mk('freeze', state.frozen ? '❄ 已冻结' : '❄ 时间冻结', state.frozen ? 'on' : '', () => {
       state.frozen = !state.frozen;
       if(state.frozen){
-        // 把「还早」的偏移一起冻进去 —— 不然一冻结就会跳回真实时间，露馅
+        // 把「还早」的偏移一起冻进去 —— 不然一冻结就跳回真实时间，露馅
         state.freezeAt = Date.now() + (Number(state.laterMin) || 0) * 60000;
         state.frozenFrom = document.getElementById('realClock').textContent || '';
         toast('时间已冻结 —— 它不动了，你看不出来');
@@ -2498,49 +2677,100 @@ function widRender(){
       save(); render(new Date()); widRender();
     });
 
-  if(on.early !== false)
+  if(has('later')){
     mk('later', '➕ 还早 5 分钟' + (state.laterMin > 0 ? '（+' + state.laterMin + '）' : ''), '', () => {
       state.laterMin = (Number(state.laterMin) || 0) + 5;
+      lieMinAdd(5);
       lieBump(1); save();
       render(new Date()); widRender();
       toast('顺手往后推了 5 分钟 —— 一共推了 ' + state.laterMin + ' 分钟');
     });
+    if((state.laterMin || 0) > 0)
+      mk('resetLater', '↺ 取消 ' + state.laterMin + ' 分钟', 'warn', () => {
+        state.laterMin = 0; save(); render(new Date()); widRender();
+        toast('推后的时间都还回来了');
+      });
+  }
 
-  if(on.today !== false){
-    const m = Math.floor(todayStats().elapsed / 60);
-    mk('today', '⏱ 今日 ' + fmtDur(todayStats().elapsed), m >= 60 ? 'live' : '', () => {
+  if(has('glitch')) mk('glitch', '📺 花屏一下', '', glitchFire);
+
+  if(has('today'))
+    mk('today', '⏱ 今日 ' + fmtDur(todayStats().elapsed),
+       todayStats().elapsed >= 3600 ? 'live' : '', () => {
       const s = todayStats();
       toast('今日已过 ' + fmtDur(s.elapsed) + (s.away >= 60 ? ' · 没算 ' + fmtDur(s.away) : ''));
     });
+
+  if(has('fish')){
+    const s = todayStats();
+    const n = fishCount(s.elapsed);
+    const b = mk('fish', '🐟 ' + n + ' 条鱼', n > 0 ? 'live' : '', () => {
+      const need = fishNeed(todayStats().elapsed);
+      toast('今天 ' + n + ' 条' + (fishTitle(n) ? ' · ' + fishTitle(n) : '')
+        + (n < 24 ? '。再' + need.label + ' ' + need.left + ' ' + need.unit + '多一条' : ''));
+    });
+    if(b) b.title = state.fishMode === 'lie'
+      ? '按累计改动算：已累计 ' + lieMinNow() + ' 分钟'
+      : '按在页面时间算：' + fmtDur(s.elapsed);
   }
 
-  if(on.almanac !== false){
+  if(has('almanac')){
     const [a, b2, note] = almanacToday();
     const btn = mk('almanac', '📜 ' + a, '', () => toast(b2 + '。' + note));
-    btn.title = b2 + ' · ' + note;
+    if(btn) btn.title = b2 + ' · ' + note;
   }
 
-  if(on.notify !== false)
-    mk('notify', '🔔 假装有正事', '', notifyNext);
+  if(has('weather')) mk('weather', '🌤 ' + weatherToday(), '', () => toast(weatherToday()));
 
-  if(on.glitch !== false)
-    mk('glitch', '📺 花屏一下', '', glitchFire);
+  if(has('notify')) mk('notify', '🔔 假装有正事', '', notifyNext);
 
-  if(on.fake !== false)
-    mk('fake', '⬆ 假装在更新', '', fakeUpdate);
+  if(has('online'))
+    mk('online', '👥 此刻 ' + onlineNow() + ' 人也在假装', '', () => {
+      toast('此刻 ' + onlineNow() + ' 人和你一起 —— 数字是编的');
+    });
 
-  if(on.fw !== false)
+  if(has('fakebar'))
+    mk('fakebar', '⏳ 进度 ' + (Number(state.fakeBar) || 87) + '%', '', () => {
+      const cur = Number(state.fakeBar) || 87;
+      state.fakeBar = cur >= 98 ? 87 : Math.min(98, cur + 3);
+      save(); fakeBarRender(); widRender();
+      toast('进度涨到 ' + state.fakeBar + '% —— 但永远不会到 100%');
+    });
+
+  if(has('fake')) mk('fake', '⬆ 假装在更新', '', fakeUpdate);
+
+  if(has('terms'))
+    mk('terms', state.disclaimer ? '§ 条款已展开' : '§ 假法律条款', state.disclaimer ? 'on' : '', () => {
+      state.disclaimer = !state.disclaimer;
+      el('termsBar').dataset.done = '';
+      save(); termsRender(); widRender();
+      toast(state.disclaimer ? '免责声明已就位' : '免责声明撤回了');
+    });
+
+  if(has('fw'))
     mk('fw', '🌤 今日宜', '', () => {
       const [, , note] = almanacToday();
-      const t = ['小雨', '多云', '晴', '有风', '阴'][new Date().getDate() % 5];
-      toast(t + ' · ' + note);
+      toast(weatherToday() + ' · ' + note);
     });
 
-  if((state.laterMin || 0) > 0)
-    mk('resetLater', '↺ 取消 ' + state.laterMin + ' 分钟', 'warn', () => {
-      state.laterMin = 0; save(); render(new Date()); widRender();
-      toast('推后的时间都还回来了');
-    });
+  fakeBarRender();
+  onlineRender();
+  termsRender();
+}
+
+/* ---- 通知模拟器 ---- */
+const NOTIFS = [
+  '刚刚：你已连续专注 47 分钟 ✓',
+  '刚刚：今天的目标完成 92% ✓',
+  '刚刚：比昨天进步了 12% ✓',
+  '刚刚：已为你跳过 3 条不想看的事 ✓',
+  '刚刚：注意力评分 98 分 · 全站前 1% ✓'
+];
+function notifyNext(){
+  const k = (Number(state.notifySeq) || 0) % NOTIFS.length;
+  state.notifySeq = k + 1;
+  save();
+  toast(NOTIFS[k].replace('刚刚：', ''));
 }
 
 /* ---------------- 设置抽屉 / 折叠分区 ---------------- */
@@ -2873,7 +3103,9 @@ function startFisheye(){
 /* ---------------- 事件 ---------------- */
 
 el('rngOffset').addEventListener('input', e => {
+  const prevOff = Number(state.offset) || 0;
   state.offset = Number(e.target.value);
+  if(state.offset > prevOff) lieMinAdd(state.offset - prevOff);   // 只记「往回拨」
   if(state.offset > 0 && state.anchor === 'real') state.anchor = 'dilate';
   commit();
 });
@@ -3005,6 +3237,17 @@ el('btnStatReset').onclick = () => {
 };
 
 /* ---------------- 幻觉装饰：事件 ---------------- */
+
+// 鱼缸算法切换
+el('btnFishMode').onclick = () => {
+  state.fishMode = state.fishMode === 'lie' ? 'work' : 'lie';
+  save();
+  statRender();
+  widRender();
+  toast(state.fishMode === 'lie'
+    ? '鱼缸改按「累计改动」算 —— 每 20 分钟改动一条鱼'
+    : '鱼缸改按「在页面时间」算 —— 每 20 分钟一条鱼');
+};
 
 el('btnStreakDo').onclick = () => {
   if(streakCheckIn()) alert('打卡成功 —— 已连续 ' + streakState().n + ' 天。\n\n（其实它并不在意你今天做了什么。）');
