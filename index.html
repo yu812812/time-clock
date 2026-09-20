@@ -229,10 +229,11 @@
 
   /* 提示条 */
   .wtoast{
-    position:fixed;left:50%;bottom:78px;transform:translateX(-50%) translateY(8px);
+    position:fixed;left:50%;bottom:104px;transform:translateX(-50%) translateY(8px);
     background:rgba(10,15,28,.95);border:1px solid rgba(91,140,255,.4);border-radius:11px;
     padding:9px 16px;font-size:12px;color:var(--text);z-index:60;pointer-events:none;
-    opacity:0;transition:.22s;box-shadow:0 8px 26px rgba(0,0,0,.5)
+    opacity:0;transition:.22s;box-shadow:0 8px 26px rgba(0,0,0,.5);
+    max-width:min(340px,86vw);text-align:center
   }
   .wtoast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   .wtoast[hidden]{display:none}
