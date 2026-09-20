@@ -200,6 +200,61 @@
     white-space:nowrap}
   @keyframes swim{0%,100%{transform:translateY(0) scaleX(1)}50%{transform:translateY(-3px) scaleX(-1)}}
 
+  /* ================= 页面小玩意 ================= */
+  .widbar{
+    display:flex;flex-wrap:wrap;gap:7px;justify-content:center;align-items:center;
+    margin:14px 0 4px;position:relative;z-index:3;max-width:760px
+  }
+  .wid{
+    display:inline-flex;align-items:center;gap:5px;font-family:inherit;font-size:11.5px;
+    color:var(--dim);background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.09);
+    border-radius:999px;padding:6px 12px;cursor:pointer;transition:.16s;white-space:nowrap
+  }
+  .wid:hover{color:var(--text);background:rgba(91,140,255,.16);border-color:rgba(91,140,255,.4);
+    transform:translateY(-1px)}
+  .wid:active{transform:translateY(0)}
+  .wid.on{color:#0a0f1c;background:linear-gradient(180deg,#7ea6ff,#5b8cff);
+    border-color:transparent;font-weight:700}
+  .wid.warn{color:#ffb020;border-color:rgba(255,176,32,.35);background:rgba(255,176,32,.1)}
+  .wid.live{color:#3ddc97;border-color:rgba(61,220,151,.35);background:rgba(61,220,151,.1)}
+  .wid.dock{padding:6px 11px;font-weight:700}
+
+  /* 时间冻结 */
+  .clock.frozen{filter:saturate(.5) brightness(.92)}
+  .clock.frozen::after{
+    content:"已冻结";position:absolute;left:50%;bottom:-26px;transform:translateX(-50%);
+    font-size:11px;letter-spacing:2px;color:#7ea6ff;font-weight:700
+  }
+  .clock{position:relative}
+
+  /* 提示条 */
+  .wtoast{
+    position:fixed;left:50%;bottom:78px;transform:translateX(-50%) translateY(8px);
+    background:rgba(10,15,28,.95);border:1px solid rgba(91,140,255,.4);border-radius:11px;
+    padding:9px 16px;font-size:12px;color:var(--text);z-index:60;pointer-events:none;
+    opacity:0;transition:.22s;box-shadow:0 8px 26px rgba(0,0,0,.5)
+  }
+  .wtoast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .wtoast[hidden]{display:none}
+
+  /* 假系统更新 */
+  .fakeupd{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;
+    background:rgba(4,7,14,.86);backdrop-filter:blur(3px)}
+  .fakeupd[hidden]{display:none}
+  .fu-box{text-align:center;width:min(320px,80vw)}
+  .fu-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;letter-spacing:1px}
+  .fu-bar{height:8px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden}
+  .fu-bar i{display:block;height:100%;width:0;border-radius:99px;
+    background:linear-gradient(90deg,#5b8cff,#8b5cf6);transition:width .2s linear}
+  .fu-note{font-size:11px;color:var(--dim2);margin-top:12px}
+
+  /* 花屏 */
+  .fuscreen{position:fixed;inset:0;z-index:70;pointer-events:none;
+    background:repeating-linear-gradient(0deg,rgba(91,140,255,.22) 0 2px,transparent 2px 5px);
+    mix-blend-mode:screen;animation:roll .14s steps(2) infinite}
+  .fuscreen[hidden]{display:none}
+  @keyframes roll{0%{transform:translateY(0)}100%{transform:translateY(5px)}}
+
   /* 假连续打卡 */
   .streakbox{padding:11px 13px;border-radius:11px;font-size:12.5px;line-height:1.7;
     background:rgba(255,176,32,.09);border:1px solid rgba(255,176,32,.26);color:var(--text)}
@@ -400,11 +455,22 @@
     <div class="clock-wrap">
       <div class="clock" id="clock" aria-live="off"></div>
     </div>
+    <div class="widbar" id="widBar"></div>
+
     <div class="stage-foot">
       <div class="dateline" id="dateLine"></div>
       <div class="chips" id="meta"></div>
       <div class="soothe" id="soothe"></div>
     </div>
+    <div class="fakeupd" id="fakeUpd" hidden>
+      <div class="fu-box">
+        <div class="fu-title">系统正在更新</div>
+        <div class="fu-bar"><i id="fuBar"></i></div>
+        <div class="fu-note">请勿关闭页面 —— 更新完成后时间会继续</div>
+      </div>
+    </div>
+    <div class="fuscreen" id="fuScreen" hidden></div>
+    <div class="wtoast" id="wToast" hidden></div>
   </main>
 
   <!-- ================= 底栏：只留真实时间参照 ================= -->
@@ -893,6 +959,17 @@ const DEFAULT_STATE = {
     '拖了很久 → 稳扎稳打'
   ].join('\n'),
   busy: false,                                       // 假装很忙
+  // —— 第三层：页面上的小玩意 ——
+  widOn: { freeze:true, early:true, almanac:true, busy:false, later:true, today:true,
+           notify:true, glitch:true, fake:true, fw:true },   // 哪些挂件显示
+  widDock: true,                                     // 小玩意条是否展开
+  frozen: false,                                     // 时间冻结
+  frozenFrom: '',                                    // 冻住那一刻的真实时间
+  laterMin: 0,                                       // 「还早」按钮点出来的分钟
+  fake: false,                                       // 假系统更新遮罩
+  freezeAt: 0,
+  notifySeq: 0,
+
   busyDefs: [
     '正在同步数据…',
     '正在校验接口…',
@@ -1088,10 +1165,24 @@ function numGroup(text){
 }
 
 function render(now){
+  // 第三层：花屏期间先乱一下再恢复；「还早」按钮把显示往后推；冻结则定住不动
+  if(state.glitchUntil && Date.now() < state.glitchUntil){
+    glitchRender(now);
+    return;
+  }
+  if(state.glitchUntil && Date.now() >= state.glitchUntil){
+    state.glitchUntil = 0;
+    el('clock').classList.remove('frozen');
+  }
+
+  if(state.frozen && state.freezeAt) now = new Date(state.freezeAt);
+  else now = lieNow(now);
+
   const { d, sec } = resolve(now);
   const isClassic = state.num === 'classic';
   const clock = el('clock');
   clock.classList.toggle('classic', isClassic);
+  clock.classList.toggle('frozen', !!state.frozen);
   clock.innerHTML = '';
 
   const extra = [];
@@ -1839,6 +1930,9 @@ function renderControls(){
 
   // 幻觉装饰
   lieDecorRender();
+
+  // 页面小玩意
+  widRender();
 }
 
 /* ---------------- 自我评价 · 自欺欺人的账本 ---------------- */
@@ -2254,6 +2348,198 @@ function lieDecorRender(){
   doneRender();
   swapRender();
   busyRender();
+}
+
+/* ---------------- 页面小玩意（第三层） ---------------- */
+/* 这些东西不藏在设置里，直接摆在主显示下面 —— 一眼看得见，点一下就用 */
+
+// 「还早」按钮把显示推后 5 分钟；时间冻结把 now 定住
+function lieNow(d){
+  return new Date(d.getTime() + (Number(state.laterMin) || 0) * 60000);
+}
+
+function toast(msg){
+  const t = el('wToast');
+  if(!t) return;
+  t.textContent = msg;
+  t.hidden = false;
+  requestAnimationFrame(() => t.classList.add('show'));
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => {
+    t.classList.remove('show');
+    setTimeout(() => { t.hidden = true; }, 260);
+  }, 1900);
+}
+
+/* ---- 黄历 ---- */
+const ALMANAC = [
+  ['宜 拖延', '忌 打开待办', '今日宜把「等一下」说三遍'],
+  ['宜 发呆', '忌 看进度条', '适合让时间自己走一会儿'],
+  ['宜 重新开始', '忌 复盘昨天', '今天从中午开始也算一天'],
+  ['宜 早睡', '忌 再刷一条', '宜把闹钟往后调十分钟'],
+  ['宜 假装很忙', '忌 照镜子', '适合在别人面前显得充实'],
+  ['宜 换个大目标', '忌 看小目标', '大目标的好处是不用现在做'],
+  ['宜 相信自己', '忌 查记录', '今天不需要证据']
+];
+function almanacToday(){
+  const d = new Date();
+  const i = (d.getFullYear() * 372 + d.getMonth() * 31 + d.getDate()) % ALMANAC.length;
+  return ALMANAC[i];
+}
+
+/* ---- 通知模拟器（也是假的） ---- */
+const NOTIFS = [
+  '刚刚：你已连续专注 47 分钟 ✓',
+  '刚刚：今天的目标完成 92% ✓',
+  '刚刚：比昨天进步了 12% ✓',
+  '刚刚：已为你跳过 3 条不想看的事 ✓',
+  '刚刚：注意力评分 98 分 · 全站前 1% ✓'
+];
+function notifyNext(){
+  const i = (Number(state.notifySeq) || 0) % NOTIFS.length;
+  state.notifySeq = i + 1;
+  save();
+  toast(NOTIFS[i].replace('刚刚：', ''));
+}
+
+/* ---- 假系统更新 ---- */
+function fakeUpdate(){
+  const box = el('fakeUpd'), bar = el('fuBar');
+  if(!box || !bar) return;
+  state.fake = true; save();
+  box.hidden = false;
+  let v = 0;
+  const total = 4200;
+  const t0 = performance.now();
+  const step = () => {
+    const k = Math.min(1, (performance.now() - t0) / total);
+    // 永远卡在 99% 之前
+    v = Math.round(Math.min(0.99, k) * 100);
+    bar.style.width = v + '%';
+    if(k < 1) requestAnimationFrame(step);
+    else {
+      box.hidden = true;
+      state.fake = false; save();
+      toast('更新完成 —— 时间没有变化，只是你少看了几秒');
+      widRender();
+    }
+  };
+  requestAnimationFrame(step);
+}
+
+/* ---- 花屏 ---- */
+const GLITCH_CHARS = '0123456789·:.＃▒▓█';
+// 拿随机字符刷一下钟面
+function glitchRender(){
+  const clock = el('clock');
+  if(!clock) return;
+  clock.innerHTML = '';
+  let txt = '';
+  for(let i = 0; i < 5; i++) txt += GLITCH_CHARS[Math.floor(Math.random() * GLITCH_CHARS.length)];
+  clock.appendChild(numGroup(txt));
+  clock.style.opacity = (0.35 + Math.random() * 0.5).toFixed(2);
+}
+// 触发一次：覆盖层闪 + 钟面乱码，0.42 秒后自己恢复
+function glitchFire(){
+  if(!state.glitchUntil){
+    state.glitchUntil = Date.now() + 420;
+    const s = el('fuScreen');
+    if(s){
+      s.hidden = false;
+      setTimeout(() => { s.hidden = true; }, 380);
+    }
+    setTimeout(() => {
+      state.glitchUntil = 0;
+      const c = el('clock');
+      if(c) c.style.opacity = '';
+      render(new Date());
+    }, 470);
+  }
+}
+
+/* ---- 渲染 ---- */
+function widRender(){
+  const bar = el('widBar');
+  if(!bar) return;
+  const on = state.widOn || {};
+  const keep = state.frozen;
+  bar.innerHTML = '';
+
+  const mk = (key, label, cls, fn) => {
+    const b = document.createElement('button');
+    b.className = 'wid' + (cls ? ' ' + cls : '');
+    b.type = 'button';
+    b.textContent = label;
+    b.onclick = fn;
+    bar.appendChild(b);
+    return b;
+  };
+
+  // 总开关放最前
+  mk('dock', state.widDock === false ? '🧰 小玩意 (' + Object.values(on).filter(Boolean).length + ')'
+                                     : '🧰 收起',
+     'dock', () => { state.widDock = state.widDock === false; save(); widRender(); });
+
+  if(state.widDock === false) return;      // 收起时只留总开关
+
+  if(on.freeze !== false)
+    mk('freeze', keep ? '❄ 已冻结' : '❄ 时间冻结', keep ? 'on' : '', () => {
+      state.frozen = !state.frozen;
+      if(state.frozen){
+        // 把「还早」的偏移一起冻进去 —— 不然一冻结就会跳回真实时间，露馅
+        state.freezeAt = Date.now() + (Number(state.laterMin) || 0) * 60000;
+        state.frozenFrom = document.getElementById('realClock').textContent || '';
+        toast('时间已冻结 —— 它不动了，你看不出来');
+      }else{
+        state.freezeAt = 0;
+        toast('解冻 —— 刚才那段时间并没有消失');
+      }
+      save(); render(new Date()); widRender();
+    });
+
+  if(on.early !== false)
+    mk('later', '➕ 还早 5 分钟' + (state.laterMin > 0 ? '（+' + state.laterMin + '）' : ''), '', () => {
+      state.laterMin = (Number(state.laterMin) || 0) + 5;
+      lieBump(1); save();
+      render(new Date()); widRender();
+      toast('顺手往后推了 5 分钟 —— 一共推了 ' + state.laterMin + ' 分钟');
+    });
+
+  if(on.today !== false){
+    const m = Math.floor(todayStats().elapsed / 60);
+    mk('today', '⏱ 今日 ' + fmtDur(todayStats().elapsed), m >= 60 ? 'live' : '', () => {
+      const s = todayStats();
+      toast('今日已过 ' + fmtDur(s.elapsed) + (s.away >= 60 ? ' · 没算 ' + fmtDur(s.away) : ''));
+    });
+  }
+
+  if(on.almanac !== false){
+    const [a, b2, note] = almanacToday();
+    const btn = mk('almanac', '📜 ' + a, '', () => toast(b2 + '。' + note));
+    btn.title = b2 + ' · ' + note;
+  }
+
+  if(on.notify !== false)
+    mk('notify', '🔔 假装有正事', '', notifyNext);
+
+  if(on.glitch !== false)
+    mk('glitch', '📺 花屏一下', '', glitchFire);
+
+  if(on.fake !== false)
+    mk('fake', '⬆ 假装在更新', '', fakeUpdate);
+
+  if(on.fw !== false)
+    mk('fw', '🌤 今日宜', '', () => {
+      const [, , note] = almanacToday();
+      const t = ['小雨', '多云', '晴', '有风', '阴'][new Date().getDate() % 5];
+      toast(t + ' · ' + note);
+    });
+
+  if((state.laterMin || 0) > 0)
+    mk('resetLater', '↺ 取消 ' + state.laterMin + ' 分钟', 'warn', () => {
+      state.laterMin = 0; save(); render(new Date()); widRender();
+      toast('推后的时间都还回来了');
+    });
 }
 
 /* ---------------- 设置抽屉 / 折叠分区 ---------------- */
@@ -2886,6 +3172,7 @@ startFisheye();
 startStats();
 setInterval(statRender, 5000);
 setInterval(() => { if(state.busy){ busySeq++; busyRender(); } }, 2600);
+setInterval(widRender, 15000);          // 让「今日」挂件跟着走
 requestAnimationFrame(loop);
 </script>
 </body>
