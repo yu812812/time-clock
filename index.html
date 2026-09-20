@@ -188,8 +188,19 @@
     background:linear-gradient(180deg,#121a2e 72%,rgba(18,26,46,0))}
   .msearch .tin{width:100%;box-sizing:border-box}
 
-  /* 分组：给平级项分出层次 */
-  .mgroup{margin-bottom:2px}
+  /* 专注鱼缸 */
+  .tank{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:34px;
+    padding:9px 11px;border-radius:11px;background:rgba(61,220,151,.08);
+    border:1px solid rgba(61,220,151,.24)}
+  .tank .fish{font-size:20px;line-height:1;animation:swim 3.2s ease-in-out infinite}
+  .tank .fish:nth-child(2n){animation-duration:3.9s}
+  .tank .fish:nth-child(3n){animation-duration:2.7s}
+  .tank .empty{font-size:11.5px;color:var(--dim2)}
+  .tank .title{margin-left:auto;font-size:11.5px;font-weight:700;color:#3ddc97;
+    white-space:nowrap}
+  @keyframes swim{0%,100%{transform:translateY(0) scaleX(1)}50%{transform:translateY(-3px) scaleX(-1)}}
+
+  /* 分组：给平级项分出层次 */  .mgroup{margin-bottom:2px}
   .mgroup-head{padding:12px 18px 8px;font-size:10.5px;font-weight:800;letter-spacing:2px;
     color:var(--dim2);display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;
     border-top:1px solid rgba(255,255,255,.07)}
@@ -375,6 +386,7 @@
   <!-- ================= 底栏：只留真实时间参照 ================= -->
   <footer class="bottombar">
     <span>真实时间：<span class="real" id="realClock" title="别看了，假的更好">……</span></span>
+    <span id="statChip" title="这里面有一部分时间是它替你抹掉的"></span>
     <span id="fps">—</span>
   </footer>
 
@@ -593,6 +605,42 @@
     </section>
       </div>
 
+      <div class="mgroup" data-group="stats">
+        <div class="mgroup-head">自我评价<span>让今天看起来比实际更努力</span></div>
+
+        <section class="sec" data-key="tank">
+          <button class="sec-head" type="button">专注鱼缸 <span class="caret">▶</span></button>
+          <div class="sec-body">
+            <div class="tank" id="tankView"></div>
+            <div class="hint" id="tankHint">在页面上待着就长鱼 —— 什么都不用做。</div>
+          </div>
+        </section>
+
+        <section class="sec" data-key="stat">
+          <button class="sec-head" type="button">走神不算数 <span class="caret">▶</span></button>
+          <div class="sec-body">
+            <div class="row">
+              <label>自动抹账</label>
+              <button class="opt" id="btnStatOn" style="padding:6px 12px">开启</button>
+            </div>
+            <div class="row">
+              <label>多久算走神</label>
+              <input type="range" id="rngIdle" min="10" max="180" step="5">
+              <span class="val" id="valIdle">45 秒</span>
+            </div>
+            <div class="row">
+              <label>底部标签</label>
+              <button class="opt" id="btnStatChip" style="padding:6px 12px">显示</button>
+            </div>
+            <div class="row" style="margin-top:13px">
+              <label>今日账本</label>
+              <button class="opt" id="btnStatReset" style="padding:6px 12px">清零</button>
+            </div>
+            <div class="hint" id="statDetail"></div>
+          </div>
+        </section>
+      </div>
+
 </div>
 
   <div class="drawer-foot">
@@ -721,6 +769,13 @@ const DEFAULT_STATE = {
   hideExactTime: false,              // 藏掉具体上课时间
   hideWarning: false,                // 不显示「快迟到了」这类提醒
   softFocus: false,                  // 模糊背景，专注看倒计时
+
+  // —— 自我评价（自欺欺人的账本）——
+  // { 'YYYY-MM-DD': { elapsed:秒(真的在页面上的时间), away:秒(走神被抹掉的), lies:次数 } }
+  stats: {},
+  statOn: true,          // 开启「走神不算数」
+  statChip: true,        // 页面底部显示今日小标签
+  idleSec: 45,           // 静置多少秒算走神
 
   fishText:'⏳ 时间还早 · 再撑一会儿 · 一天有 36 小时 🐳',
   fishStrength:0.45,
@@ -1646,6 +1701,205 @@ function renderControls(){
   eventControlsRender();
   eventHolidayRender();
   courseCheatRender();
+
+  // 自我评价
+  statRender();
+}
+
+/* ---------------- 自我评价 · 自欺欺人的账本 ---------------- */
+/* ① 走神不算数：切走标签页 / 静置太久，那段时间从「今日已过」里抹掉
+   ② 专注鱼缸：在页面上待着就长鱼，什么都不用做也算成就
+   ③ 谎言计数器：把抹掉的时长和自欺次数明明白白摆出来 */
+
+const STAT_KEEP_DAYS = 40;        // 只留最近这些天，别把存储撑爆
+const FISH_PER_SEC  = 20 * 60;    // 每 20 分钟一条鱼
+
+function fmtDur(sec){
+  sec = Math.max(0, Math.floor(sec));
+  const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60);
+  if(h <= 0) return m + ' 分';
+  return h + ' 小时 ' + (m > 0 ? m + ' 分' : '整');
+}
+
+function todayStats(){
+  const k = dateKey(new Date());
+  if(!state.stats || typeof state.stats !== 'object') state.stats = {};
+  let s = state.stats[k];
+  if(!s || typeof s !== 'object'){ s = { elapsed:0, away:0, lies:0 }; state.stats[k] = s; }
+  if(typeof s.elapsed !== 'number') s.elapsed = 0;
+  if(typeof s.away !== 'number')    s.away = 0;
+  if(typeof s.lies !== 'number')    s.lies = 0;
+  return s;
+}
+
+// 记一笔「自欺」。以后别的功能要计数，调这个就行
+function lieBump(n){
+  const s = todayStats();
+  s.lies += (n || 1);
+  save();
+}
+
+function pruneStats(){
+  const keys = Object.keys(state.stats || {}).sort();
+  if(keys.length <= STAT_KEEP_DAYS) return;
+  const drop = keys.slice(0, keys.length - STAT_KEEP_DAYS);
+  drop.forEach(k => { delete state.stats[k]; });
+}
+
+function fishCount(sec){ return Math.min(24, Math.floor(sec / FISH_PER_SEC)); }
+
+function fishTitle(n){
+  if(n <= 0) return '';
+  if(n >= 12) return '摸鱼冠军';
+  if(n >= 6)  return '今日高产';
+  if(n >= 3)  return '有点东西';
+  return '开了个头';
+}
+
+/* ---- 计时：只在「人在并且页面可见」时累计 ---- */
+
+let statLast = Date.now();     // 上次心跳
+let statAway = 0;              // 本次离开累计了多久（还没入账）
+let statIdleTimer = 0;         // 静置计时器
+
+function markAway(ms){
+  if(!state.statOn || ms <= 0) return;
+  statAway += ms;
+}
+
+function enterIdle(){
+  if(!state.statOn) return;
+  if(document.hidden) return;
+  markAway(Date.now() - statLast);
+  statLast = Date.now();
+}
+
+function leaveIdle(){
+  if(!state.statOn) return;
+  if(document.hidden) return;
+  markAway(Date.now() - statLast);
+  statLast = Date.now();
+  statAway = 0;                // 人回来了，之前的静置不算走神
+}
+
+function statTick(){
+  const now = Date.now();
+  const gap = now - statLast;
+  statLast = now;
+
+  if(!state.statOn || document.hidden){
+    // 页面在后台也别把这段时间算进「已过」
+    if(document.hidden && gap > 5000) statAway += gap / 1000;
+    return;
+  }
+
+  // 超过 5 秒的空档（切走又回来、睡眠）一律算走神
+  if(gap > 5000){ markAway(gap); todayStats().lies++; return; }   // 抹一次账 = 自欺一次
+  // 5 秒以内算人一直在：这段也要计入已过，否则会凭空丢掉几秒
+  if(gap > 0){ todayStats().elapsed += Math.min(gap, 5000) / 1000; }
+
+  // 之前攒下的走神一并入账
+  if(statAway > 0){ todayStats().away += statAway / 1000; statAway = 0; }
+  return;
+}
+
+function statFlush(){
+  if(!state.statOn) return;
+  const s = todayStats();
+  if(statAway > 0){ s.away += statAway / 1000; statAway = 0; }
+  pruneStats();
+  save();
+  statRender();
+}
+
+function startStats(){
+  ['pointerdown','pointermove','keydown','wheel','touchstart'].forEach(ev => {
+    window.addEventListener(ev, leaveIdle, { passive:true });
+  });
+  window.addEventListener('blur', () => markAway(Date.now() - statLast));
+  document.addEventListener('visibilitychange', () => {
+    if(document.hidden){ markAway(Date.now() - statLast); statFlush(); }
+    else { statLast = Date.now(); statAway = 0; }
+  });
+  window.addEventListener('beforeunload', statFlush);
+
+  clearInterval(statIdleTimer);
+  statIdleTimer = setInterval(enterIdle, 4000);
+  setInterval(statTick, 1000);
+}
+
+/* ---- 渲染 ---- */
+
+function statRender(){
+  const s = todayStats();
+
+  // 底部小标签
+  const chip = el('statChip');
+  if(chip){
+    if(state.statChip === false || !state.statOn){ chip.textContent = ''; chip.hidden = true; }
+    else{
+      chip.hidden = false;
+      chip.innerHTML = '今日 <b>' + fmtDur(s.elapsed) + '</b>'
+        + (s.away >= 60 ? ' · 没算 <b>' + fmtDur(s.away) + '</b>' : '')
+        + (s.lies > 0 ? ' · 自欺 <b>' + s.lies + '</b> 次' : '');
+    }
+  }
+
+  // 鱼缸
+  const tank = el('tankView');
+  if(tank){
+    const n = fishCount(s.elapsed);
+    tank.innerHTML = '';
+    if(n <= 0){
+      const e = document.createElement('span');
+      e.className = 'empty';
+      e.textContent = '缸里还空着 —— 在页面上待够 20 分钟就来第一条 🐟';
+      tank.appendChild(e);
+    }else{
+      for(let i = 0; i < n; i++){
+        const f = document.createElement('span');
+        f.className = 'fish';
+        f.textContent = i % 5 === 4 ? '🐠' : '🐟';
+        tank.appendChild(f);
+      }
+      const t = document.createElement('span');
+      t.className = 'title';
+      t.textContent = fishTitle(n);
+      tank.appendChild(t);
+    }
+    const hint = el('tankHint');
+    if(hint){
+      const next = n < 24
+        ? '再待 ' + fmtDur(Math.max(0, (n + 1) * FISH_PER_SEC - s.elapsed)) + ' 就该多一条了。'
+        : '缸满了 —— 今天你已经足够"努力"。';
+      hint.textContent = n > 0
+        ? '今天 ' + n + ' 条鱼。' + next + ' 它们什么都不会做，只负责证明你在这儿。'
+        : '在页面上待着就长鱼 —— 什么都不用做。';
+    }
+  }
+
+  // 明细
+  const d = el('statDetail');
+  if(d){
+    const total = s.elapsed + s.away;
+    d.innerHTML = s.away > 0
+      ? '今天你在页面上待了 <b>' + fmtDur(total) + '</b>，其中 <b>' + fmtDur(s.away)
+        + '</b> 被它悄悄抹掉了 —— 所以你看到的「今日已过」只有 <b>' + fmtDur(s.elapsed) + '</b>。'
+      : '今天还没抹掉任何时间。切走标签页、或者静置 '
+        + (Number(state.idleSec) || 45) + ' 秒以上，那段时间就会被抹掉。';
+  }
+
+  // 控件回显
+  const on = el('btnStatOn');
+  if(on){
+    on.textContent = state.statOn ? '开启' : '已关闭';
+    on.classList.toggle('on', !!state.statOn);
+    el('btnStatChip').textContent = state.statChip === false ? '已隐藏' : '显示';
+    el('btnStatChip').classList.toggle('on', state.statChip !== false);
+    el('rngIdle').value = Number(state.idleSec) || 45;
+    el('valIdle').textContent = (Number(state.idleSec) || 45) + ' 秒';
+    el('rngIdle').disabled = !state.statOn;
+  }
 }
 
 /* ---------------- 设置抽屉 / 折叠分区 ---------------- */
@@ -1666,6 +1920,7 @@ const secState = loadSections();
 const DEFAULT_OPEN = { display:true, carryHow:false, carryAmt:false, hourSys:false,
                         numText:false, rewind:false,
                         events:true, skipdays:false, cheatCtl:false,
+                        tank:false, stat:false,
                         bg:false };
 
 const allSecs = [...document.querySelectorAll('.drawer-body .sec')];
@@ -2074,6 +2329,39 @@ el('rngCheatOffset').addEventListener('input', e => {
   render(new Date());
 });
 
+/* ---------------- 自我评价：事件 ---------------- */
+
+el('btnStatOn').onclick = () => {
+  state.statOn = !state.statOn;
+  if(state.statOn){ statLast = Date.now(); statAway = 0; }
+  else { statTick(); statFlush(); }     // 关掉前先把攒下的入账
+  save();
+  statRender();
+};
+
+el('btnStatChip').onclick = () => {
+  state.statChip = state.statChip === false;
+  save();
+  statRender();
+};
+
+el('rngIdle').addEventListener('input', e => {
+  state.idleSec = Number(e.target.value);
+  save();
+  el('valIdle').textContent = e.target.value + ' 秒';
+  statRender();
+});
+
+el('btnStatReset').onclick = () => {
+  if(!confirm('把今天的账本清零？（今日已过 / 没算 / 自欺次数）')) return;
+  const k = dateKey(new Date());
+  if(state.stats) delete state.stats[k];
+  statAway = 0;
+  statLast = Date.now();
+  save();
+  statRender();
+};
+
 el('btnRewind').onclick = () => {
   state.rewind = !state.rewind;
   if(state.rewind){
@@ -2178,6 +2466,8 @@ function loop(ts){
 renderControls();
 render(new Date());
 startFisheye();
+startStats();
+setInterval(statRender, 5000);
 requestAnimationFrame(loop);
 </script>
 </body>
