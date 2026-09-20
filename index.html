@@ -206,6 +206,43 @@
     padding:9px 11px;outline:none;transition:.16s}
   .ta:focus{border-color:rgba(91,140,255,.55);background:rgba(0,0,0,.4)}
   .ta::placeholder{color:var(--dim2)}
+
+  /* ---------- 课表编辑器 ---------- */
+  .cgrid{display:flex;flex-direction:column;gap:7px}
+  .crow{display:flex;gap:9px;align-items:flex-start}
+  .cday{flex:0 0 34px;font-size:11.5px;font-weight:700;color:var(--dim);
+    padding-top:6px;letter-spacing:.5px}
+  .citems{flex:1;display:flex;flex-wrap:wrap;gap:6px;min-width:0}
+  .citem{display:inline-flex;align-items:center;gap:7px;max-width:100%;
+    background:rgba(91,140,255,.13);border:1px solid rgba(91,140,255,.32);
+    border-radius:9px;padding:5px 8px;font-size:11.5px;cursor:pointer;transition:.15s}
+  .citem:hover{background:rgba(91,140,255,.22);border-color:rgba(91,140,255,.5)}
+  .citem .ctime{color:#9db8ff;font-weight:600;font-variant-numeric:tabular-nums}
+  .citem .cname{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:112px}
+  .citem .croom{color:var(--dim2);font-size:10.5px}
+  .citem .cdel{border:0;background:transparent;color:var(--dim2);font-size:11px;
+    padding:0 2px;cursor:pointer;line-height:1}
+  .citem .cdel:hover{color:#ff7a7a}
+  .cadd{border:1px dashed var(--line);background:transparent;color:var(--dim2);
+    font-size:11px;padding:5px 9px;border-radius:9px}
+  .cadd:hover{color:var(--text);border-color:rgba(255,255,255,.3)}
+
+  .ceform{margin-top:12px;padding:12px;border:1px solid rgba(91,140,255,.3);
+    border-radius:11px;background:rgba(91,140,255,.07)}
+  .ceform[hidden]{display:none}
+  .cehead{font-size:12px;font-weight:700;color:#9db8ff;margin-bottom:10px}
+  .ceerr{font-size:11.5px;color:#ff9a9a;margin-top:8px;min-height:15px}
+  .tin{font-family:inherit;font-size:12.5px;color:var(--text);background:rgba(0,0,0,.3);
+    border:1px solid var(--line);border-radius:9px;padding:7px 9px;outline:none;min-width:0;
+    transition:.15s}
+  .tin:focus{border-color:rgba(91,140,255,.6);background:rgba(0,0,0,.45)}
+  .tin::placeholder{color:var(--dim2)}
+
+  /* 模糊背景（自欺欺人的一层） */
+  body.soft-focus .fisheye{filter:blur(6px);opacity:.7}
+  body.soft-focus .soothe,
+  body.soft-focus .dateline,
+  body.soft-focus .chips{filter:blur(2px);opacity:.55}
   .opt{
     border:1px solid var(--line);background:rgba(0,0,0,.26);border-radius:10px;
     padding:8px 11px;font-size:12.5px;color:var(--text);cursor:pointer;transition:.16s;text-align:left
@@ -399,6 +436,87 @@
       </div>
     </section>
 
+    <section class="sec" data-key="course">
+      <button class="sec-head" type="button">课表 <span class="caret">▶</span></button>
+      <div class="sec-body">
+        <label class="field">点课程卡片可以改，点「＋ 加一节」新增</label>
+        <div class="cgrid" id="courseGrid"></div>
+        <div class="ceform" id="ceForm" hidden>
+          <div class="cehead" id="ceTitle">新增</div>
+          <div class="row">
+            <label>时间</label>
+            <input class="tin" id="ceStart" placeholder="08:00" style="width:74px">
+            <span style="color:var(--dim2)">—</span>
+            <input class="tin" id="ceEnd" placeholder="09:40" style="width:74px">
+          </div>
+          <div class="row">
+            <label>课程</label>
+            <input class="tin" id="ceName" placeholder="高等数学" style="flex:1">
+          </div>
+          <div class="row">
+            <label>教室</label>
+            <input class="tin" id="ceRoom" placeholder="A301" style="flex:1">
+          </div>
+          <div class="ceerr" id="ceErr"></div>
+          <div class="opts" style="margin-top:11px">
+            <button class="opt" type="button" id="ceSave"><span class="k">保存</span></button>
+            <button class="opt" type="button" id="ceCancel"><span class="k">取消</span></button>
+          </div>
+        </div>
+        <div class="hint" id="courseControls"></div>
+      </div>
+    </section>
+
+    <section class="sec" data-key="holiday">
+      <button class="sec-head" type="button">放假 / 调休 <span class="caret">▶</span></button>
+      <div class="sec-body">
+        <label class="field">选一个日期，标记放假或调休</label>
+        <div class="row">
+          <label>日期</label>
+          <input class="tin" type="date" id="courseDate" style="flex:1">
+        </div>
+        <div id="courseHolidayBox"></div>
+        <div class="hint">放假那天不显示倒计时，自动跳到下一次课；调休则照常算。</div>
+      </div>
+    </section>
+
+    <section class="sec" data-key="cheat2">
+      <button class="sec-head" type="button">倒计时障眼法 <span class="caret">▶</span></button>
+      <div class="sec-body">
+        <div class="row">
+          <label>偷加时间</label>
+          <button class="opt" id="btnCheatCountdown" style="padding:6px 12px">开启</button>
+        </div>
+        <div class="row">
+          <label>最多多给</label>
+          <input type="range" id="rngCheatScale" min="100" max="200" step="5">
+          <span class="val" id="valCheatScale">+30%</span>
+        </div>
+        <div class="row">
+          <label>假的提前量</label>
+          <input type="range" id="rngCheatOffset" min="0" max="30" step="1">
+          <span class="val" id="valCheatOffset">5 分钟</span>
+        </div>
+        <div class="row">
+          <label>上课时间</label>
+          <button class="opt" id="btnHideExact" style="padding:6px 12px">显示</button>
+        </div>
+        <div class="row">
+          <label>迟到提醒</label>
+          <button class="opt" id="btnHideWarning" style="padding:6px 12px">开启</button>
+        </div>
+        <div class="row">
+          <label>模糊背景</label>
+          <button class="opt" id="btnSoftFocus" style="padding:6px 12px">关闭</button>
+        </div>
+        <div class="hint">
+          · <b>偷加时间</b>：倒计时里偷偷多显示一点，且每帧微抖 —— 看着一直在"多出来"。<br>
+          · <b>假的提前量</b>：把表上的课往后挪，于是你以为还早。<br>
+          · 剩余 <b>≤ 1 小时</b>自动切成<b>秒</b>显示：3600 就是比「1 小时」经用。
+        </div>
+      </div>
+    </section>
+
   </div>
 
   <div class="drawer-foot">
@@ -463,6 +581,8 @@ const ANCHORS = [
     fish:'🙈 真实时间是什么 · 我只看我想看的 · 假的更好 🫣' },
   { id:'dilate',    name:'时间膨胀',   desc:'套用上面的进位引擎',
     fish:'⏳ 时间还早 · 单位都换了，那就不算晚 · 一天有 36 小时 🐳' },
+  { id:'lesson',    name:'下节课',     desc:'还剩多少秒（数字很大）',
+    fish:'⏳ 还有时间 · 不慌 · 来得及 · 慢慢来 🐌' },
   { id:'love520',   name:'我爱你',     desc:'距离 5:20 有多远',
     fish:'还在等时间的爱意💖' },
   { id:'hour',      name:'本小时整点', desc:'永远「才刚过整点」',
@@ -513,6 +633,17 @@ const DEFAULT_STATE = {
   num:'arabic', offset:0, round:0, rewind:false, anchor:'dilate',
   fishOn:true,
   fishFollow:true,
+  // —— 课表 ——
+  courses: [],                       // 每条：{ id, day:0-6(周一=0), start, end, name, room }
+  holidays: {},                      // { 'YYYY-MM-DD': 'off' | 'on' } 放假 / 调休上课
+  lessonMsgs: [],                    // 文案池，空则用内置
+  cheatCountdown: true,              // 倒计时里偷偷加时间
+  cheatScale: 1.3,                   // 最多多显示多少（1.3 = 最多 +30%）
+  cheatOffset: 5,                    // 假的提前量（分钟）：表上的课往后挪，显得还早
+  hideExactTime: false,              // 藏掉具体上课时间
+  hideWarning: false,                // 不显示「快迟到了」这类提醒
+  softFocus: false,                  // 模糊背景，专注看倒计时
+
   fishText:'⏳ 时间还早 · 再撑一会儿 · 一天有 36 小时 🐳',
   fishStrength:0.45,
   fishSpeed:60
@@ -707,6 +838,41 @@ function render(now){
 
   const extra = [];
 
+  /* ---------- 下节课：剩多少秒（数字很大，显得很经用） ---------- */
+  if(state.anchor === 'lesson'){
+    const nl = nextLesson(now);
+    const cd = countdownOf(nl);
+
+    clock.appendChild(numGroup(enc(String(cd.big))));
+    const unit = document.createElement('span');
+    unit.className = 'tok suffix lessonunit';
+    unit.textContent = cd.unit;
+    clock.appendChild(unit);
+
+    const line = lessonLine(nl);
+    renderMeta(sec, extra);
+    renderDateLine(line);
+
+    if(nl.kind === 'none'){
+      el('soothe').innerHTML = '还没有课表。<em>没排课的日子，天天都是假期。</em>';
+    }else if(nl.kind === 'during'){
+      el('soothe').innerHTML = state.hideWarning
+        ? '正在上课，安心待着就好。'
+        : '正在上课 —— 不过<em>' + cd.big + '</em> 秒之后这节课就结束了，也不算太久。';
+    }else{
+      const e = nl.entry || {};
+      const near = (nl.seconds <= 3600);
+      el('soothe').innerHTML = state.hideWarning
+        ? '还有时间，不慌。'
+        : (near
+            ? '只剩 <em>' + cd.big + '</em> 秒了 —— 听着很多，其实是 <em>'
+              + Math.max(1, Math.round(nl.seconds / 60)) + ' 分钟</em>。（数字大而已）'
+            : '还有 <em>' + cd.big + '</em> ' + cd.unit + ' 才上<em>' + (e.name || '课') + '</em>，慢慢来。');
+    }
+    fitClock();
+    return;
+  }
+
   /* ---------- 我爱你：距离 5:20 的远近 ---------- */
   if(state.anchor === 'love520'){
     const { since, near, sinceLast, nextIn } = loveOffset(sec);
@@ -844,6 +1010,29 @@ function renderMeta(sec, extra){
     return;
   }
 
+  // 「下节课」锚点：显示课程与自欺欺人的说明
+  if(state.anchor === 'lesson'){
+    const nl = nextLesson(new Date());
+    if(nl.kind === 'none'){
+      add('课表是空的', 'warn');
+      add('去设置 → 课表 里加课');
+      return;
+    }
+    const e = nl.entry || {};
+    add((nl.kind === 'during' ? '正在上：' : '下一节：') + '<b>' + (e.name || '未命名') + '</b>', 'warn');
+    if(e.room) add('教室 <b>' + e.room + '</b>');
+    if(!state.hideExactTime){
+      add('<b>' + fmtHM(nl.startSec) + '–' + fmtHM(nl.endSec) + '</b>');
+      if(Number(state.cheatOffset) > 0)
+        add('已偷偷后移 <b>' + state.cheatOffset + ' 分钟</b>');
+    } else {
+      add('时间已藏起');
+    }
+    if(state.cheatCountdown !== false)
+      add('偷加了时间 <b>最多 +' + Math.round(((Number(state.cheatScale)||1.3) - 1) * 100) + '%</b>');
+    return;
+  }
+
   // 最要紧的一条：现在显示的到底是不是真实时间
   const isReal = state.anchor === 'real' && state.offset === 0
               && state.round === 0 && !state.rewind
@@ -874,6 +1063,298 @@ function renderMeta(sec, extra){
   if(state.mode === 'digitborrow') add(`借位 <b>${state.carry} 小时</b>`);
   add(`<b>${state.hour === 'h12' ? '12 小时制' : '24 小时制'}</b>`);
   for(const e of extra) add(e, 'warn');
+}
+
+/* ---------------- 课表 · 下节课倒计时 ---------------- */
+/* 自欺欺人的几层：
+   1. 剩余 ≤ 60 分钟时切成「秒」显示 —— 3600 看着就是比 1 小时经用
+   2. 随机多显示一点时间（≤ cheatScale），每帧微调，看着一直在"多出来"
+   3. 假的提前量：把表上的上课时间往后挪，于是你以为还早
+   4. 可以藏掉具体时间、藏掉提醒、模糊背景，眼不见心不烦 */
+
+const DAY_CN = ['周一','周二','周三','周四','周五','周六','周日'];
+
+// 'HH:MM' -> 当天秒数；非法返回 null
+function parseHM(s){
+  const m = /^(\d{1,2})\s*[:：]\s*(\d{1,2})$/.exec(String(s == null ? '' : s).trim());
+  if(!m) return null;
+  const h = +m[1], mi = +m[2];
+  if(h > 23 || mi > 59) return null;
+  return h * 3600 + mi * 60;
+}
+function fmtHM(sec){
+  sec = ((Math.round(sec) % 86400) + 86400) % 86400;
+  return String(Math.floor(sec / 3600)).padStart(2,'0') + ':' + String(Math.floor(sec % 3600 / 60)).padStart(2,'0');
+}
+function nowSec(d){ return d.getHours()*3600 + d.getMinutes()*60 + d.getSeconds(); }
+function dateKey(d){
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+// 周一 = 0
+function dayIdx(d){ return (d.getDay() + 6) % 7; }
+
+function courseList(){
+  return Array.isArray(state.courses) ? state.courses : [];
+}
+
+// 某天是否上课：调休(on) → 上课；放假(off) → 不上课；否则看是不是排了课
+function dayHasClass(day, d){
+  const k = dateKey(d);
+  const flag = state.holidays && state.holidays[k];
+  if(flag === 'off') return false;
+  if(flag === 'on') return true;
+  return courseList().some(c => c.day === day);
+}
+
+// 找到「下一节课」。返回 { kind:'before'|'during'|'none', entry, startSec, endSec, seconds, date }
+function nextLesson(now){
+  const list = courseList();
+  if(!list.length) return { kind:'none' };
+
+  const lag = Math.max(0, Number(state.cheatOffset) || 0) * 60;   // 假的提前量
+  const d0 = dayIdx(now), s0 = nowSec(now);
+
+  for(let step = 0; step < 8; step++){
+    const day = (d0 + step) % 7;
+    const dayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + step);
+    const k = dateKey(dayDate);
+    const flag = state.holidays && state.holidays[k];
+
+    const todays = list.filter(c => c.day === day)
+      .map(c => {
+        const st = parseHM(c.start), en = parseHM(c.end);
+        if(st == null || en == null) return null;
+        // 假的提前量：把课往后挪，于是看着还早
+        return { c, st: st + lag, en: (en > st ? en : st + 45*60) + lag };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.st - b.st);
+    if(!todays.length) continue;
+
+    // 调休上课但当天没排课 → 跳过（没课就是没课）
+    if(flag === 'off' && step === 0) continue;   // 今天放假，看后面
+
+    for(const t of todays){
+      if(step > 0 || t.st > s0){
+        return { kind:'before', entry:t.c, startSec:t.st, endSec:t.en,
+                 seconds:(step * 86400 + t.st) - s0, date: dayDate, day };
+      }
+      if(s0 >= t.st && s0 < t.en){
+        return { kind:'during', entry:t.c, startSec:t.st, endSec:t.en,
+                 seconds: t.en - s0, date: dayDate, day };
+      }
+    }
+  }
+  return { kind:'none' };
+}
+
+// 倒计时显示：大数字 + 单位
+function countdownOf(nl){
+  if(nl.kind === 'none') return { big:'—', unit:'还没排课' };
+  let sec = Math.max(0, Math.floor(nl.seconds));
+
+  // 自欺欺人 ①：偷偷多一点，且每帧微抖，看着一直在"多出来"
+  if(state.cheatCountdown !== false && sec > 0){
+    const k = Math.max(1, Number(state.cheatScale) || 1.3);
+    const jitter = 1 + ((Date.now() / 1000) % 7) / 7 * (k - 1) * 0.35;
+    sec = Math.floor(sec * ((1 + (k - 1) * 0.65) * jitter));
+  }
+
+  // 自欺欺人 ②：≤ 60 分钟切成秒 —— 3600 比「1 小时」经用得多
+  if(nl.kind === 'during') return { big:String(sec), unit:'秒后下课', during:true };
+  if(sec <= 3600)         return { big:String(sec), unit:'秒' };
+  if(sec <= 7200)         return { big:String(Math.floor(sec / 60)), unit:'分钟' };
+  // 隔了一两天以上，用时:分就不直观了
+  if(sec > 86400){
+    const days = Math.floor(sec / 86400);
+    const hh = Math.floor(sec % 86400 / 3600);
+    const mm = Math.floor(sec % 3600 / 60);
+    return { big:days + ' 天 ' + hh, unit:': ' + String(mm).padStart(2,'0') };
+  }
+  return { big:Math.floor(sec/3600) + ':' + String(Math.floor(sec%3600/60)).padStart(2,'0'),
+           unit:'时:分' };
+}
+
+// 课程卡片文案
+function lessonLine(nl){
+  if(nl.kind === 'none') return '还没排课 —— 去设置里把课表填上';
+  const e = nl.entry || {};
+  const when = state.hideExactTime ? '（时间已藏起来）'
+             : fmtHM(nl.startSec) + '–' + fmtHM(nl.endSec);
+  const where = e.room ? ' · ' + e.room : '';
+  const head = nl.kind === 'during' ? '正在上：' : (nl.day === 0 && nl.startSec > nowSec(new Date()) ? '下一节：' : DAY_CN[nl.day] + '：');
+  return head + (e.name || '未命名') + ' ' + when + where;
+}
+
+/* ---------------- 课表编辑器 ---------------- */
+
+function courseEditorRender(){
+  const grid = el('courseGrid');
+  if(!grid) return;
+  const list = courseList();
+  grid.innerHTML = '';
+
+  for(let day = 0; day < 7; day++){
+    const row = document.createElement('div');
+    row.className = 'crow';
+
+    const lab = document.createElement('div');
+    lab.className = 'cday';
+    lab.textContent = DAY_CN[day];
+    row.appendChild(lab);
+
+    const box = document.createElement('div');
+    box.className = 'citems';
+
+    const mine = list.filter(c => c.day === day)
+      .sort((a, b) => (parseHM(a.start) ?? 0) - (parseHM(b.start) ?? 0));
+
+    for(const c of mine){
+      const item = document.createElement('div');
+      item.className = 'citem';
+      const t = document.createElement('span');
+      t.className = 'ctime';
+      t.textContent = (c.start || '??') + '–' + (c.end || '??');
+      const n = document.createElement('span');
+      n.className = 'cname';
+      n.textContent = c.name || '未命名';
+      item.appendChild(t); item.appendChild(n);
+      if(c.room){
+        const r = document.createElement('span');
+        r.className = 'croom'; r.textContent = c.room;
+        item.appendChild(r);
+      }
+      const del = document.createElement('button');
+      del.className = 'cdel'; del.type = 'button'; del.textContent = '✕';
+      del.title = '删除这节';
+      del.onclick = () => {
+        state.courses = courseList().filter(x => x.id !== c.id);
+        commit();
+      };
+      item.appendChild(del);
+
+      item.onclick = (ev) => {
+        if(ev.target === del) return;
+        courseEditor.open(day, c);
+      };
+      box.appendChild(item);
+    }
+
+    const add = document.createElement('button');
+    add.className = 'cadd'; add.type = 'button'; add.textContent = '＋ 加一节';
+    add.onclick = () => courseEditor.open(day, null);
+    box.appendChild(add);
+
+    row.appendChild(box);
+    grid.appendChild(row);
+  }
+}
+
+let courseEditor = {
+  day: 0, id: null,
+  open(day, c){
+    this.day = day;
+    this.id = c ? c.id : null;
+    el('ceTitle').textContent = DAY_CN[day] + (c ? ' · 修改' : ' · 新增');
+    el('ceStart').value = c ? (c.start || '') : '';
+    el('ceEnd').value   = c ? (c.end || '') : '';
+    el('ceName').value  = c ? (c.name || '') : '';
+    el('ceRoom').value  = c ? (c.room || '') : '';
+    el('ceErr').textContent = '';
+    el('ceForm').hidden = false;
+    el('ceStart').focus();
+  },
+  close(){ el('ceForm').hidden = true; this.id = null; },
+  save(){
+    const st = parseHM(el('ceStart').value), en = parseHM(el('ceEnd').value);
+    const name = el('ceName').value.trim();
+    if(st == null){ el('ceErr').textContent = '开始时间要写成 08:00 这样'; return; }
+    if(en == null){ el('ceErr').textContent = '结束时间要写成 09:40 这样'; return; }
+    if(en <= st){ el('ceErr').textContent = '结束时间要比开始时间晚'; return; }
+    if(!name){ el('ceErr').textContent = '课程名不能空着'; return; }
+
+    const rec = { id: this.id || ('c' + Date.now() + Math.floor(Math.random()*1000)),
+                  day:this.day, start:el('ceStart').value.trim(), end:el('ceEnd').value.trim(),
+                  name, room: el('ceRoom').value.trim() };
+    const list = courseList().slice();
+    const i = list.findIndex(x => x.id === rec.id);
+    if(i >= 0) list[i] = rec; else list.push(rec);
+    state.courses = list;
+    this.close();
+    commit();
+  }
+};
+
+/* ---------------- 控制面板 ---------------- */
+
+function courseHolidayRender(){
+  const box = el('courseHolidayBox');
+  const dateEl = el('courseDate');
+  if(!box || !dateEl) return;
+  if(!dateEl.value) dateEl.value = dateKey(new Date());
+
+  box.innerHTML = '';
+  const dk = dateEl.value;
+  const flag = (state.holidays || {})[dk] || '';
+
+  const row = document.createElement('div');
+  row.className = 'opts';
+  row.style.marginTop = '10px';
+  for(const [val, label] of [['', '正常上课'], ['off', '放假不上课'], ['on', '调休要上课']]){
+    const b = document.createElement('button');
+    b.className = 'opt' + (flag === val ? ' on' : '');
+    b.type = 'button';
+    b.innerHTML = '<span class="k">' + label + '</span>';
+    b.onclick = () => {
+      const h = Object.assign({}, state.holidays || {});
+      if(val) h[dk] = val; else delete h[dk];
+      state.holidays = h;
+      commit();
+    };
+    row.appendChild(b);
+  }
+  box.appendChild(row);
+
+  const special = Object.entries(state.holidays || {}).sort();
+  const info = document.createElement('div');
+  info.className = 'hint';
+  info.innerHTML = special.length
+    ? '已设置 ' + special.length + ' 个特殊日期：<br>'
+      + special.map(([k, v]) => k + ' ' + (v === 'off' ? '放假' : '调休')).join('、')
+    : '还没有设置放假日或调休日。';
+  box.appendChild(info);
+}
+
+function courseControlsRender(){
+  const box = el('courseControls');
+  if(!box) return;
+  const list = courseList();
+  box.innerHTML = '已排 <b>' + list.length + '</b> 节课。倒计时按<b>假的提前量</b>把课往后挪 <b>'
+    + (Number(state.cheatOffset) || 0) + '</b> 分钟，所以永远显得还早。'
+    + (list.length ? '' : '<br>还没排课 —— 点上面的「＋ 加一节」开始。');
+}
+
+function courseCheatRender(){
+  // 开关类
+  const on = el('btnCheatCountdown');
+  on.textContent = state.cheatCountdown !== false ? '开启' : '关闭';
+  on.classList.toggle('on', state.cheatCountdown !== false);
+  const he = el('btnHideExact');
+  he.textContent = state.hideExactTime ? '已藏起' : '显示';
+  he.classList.toggle('on', !!state.hideExactTime);
+  const hw = el('btnHideWarning');
+  hw.textContent = state.hideWarning ? '已关掉' : '开启';
+  hw.classList.toggle('on', !!state.hideWarning);
+  const sf = el('btnSoftFocus');
+  sf.textContent = state.softFocus ? '已开启' : '关闭';
+  sf.classList.toggle('on', !!state.softFocus);
+
+  el('rngCheatScale').value = Math.round((Number(state.cheatScale) || 1.3) * 100);
+  el('valCheatScale').textContent = '+' + Math.round(((Number(state.cheatScale) || 1.3) - 1) * 100) + '%';
+  el('rngCheatOffset').value = Number(state.cheatOffset) || 0;
+  el('valCheatOffset').textContent = (Number(state.cheatOffset) || 0) + ' 分钟';
+
+  document.body.classList.toggle('soft-focus', !!state.softFocus);
 }
 
 /* ---------------- 自我安慰话术 ---------------- */
@@ -1008,6 +1489,12 @@ function renderControls(){
   const ff = el('btnFishFollow');
   ff.textContent = state.fishFollow !== false ? '跟随锚点' : '自定义';
   ff.classList.toggle('on', state.fishFollow !== false);
+
+  // 课表相关
+  courseEditorRender();
+  courseHolidayRender();
+  courseControlsRender();
+  courseCheatRender();
 }
 
 /* ---------------- 设置抽屉 / 折叠分区 ---------------- */
@@ -1327,6 +1814,40 @@ el('btnFishFollow').onclick = () => {
   buildFisheye();
   renderControls();
 };
+
+/* ---------------- 课表：事件 ---------------- */
+
+el('ceSave').onclick = () => courseEditor.save();
+el('ceCancel').onclick = () => courseEditor.close();
+['ceStart','ceEnd','ceName','ceRoom'].forEach(id => {
+  el(id).addEventListener('keydown', e => {
+    if(e.key === 'Enter'){ e.preventDefault(); courseEditor.save(); }
+    if(e.key === 'Escape'){ courseEditor.close(); }
+  });
+});
+el('courseDate').addEventListener('change', () => courseHolidayRender());
+
+el('btnCheatCountdown').onclick = () => {
+  state.cheatCountdown = state.cheatCountdown === false;
+  commit();
+};
+el('btnHideExact').onclick = () => { state.hideExactTime = !state.hideExactTime; commit(); };
+el('btnHideWarning').onclick = () => { state.hideWarning = !state.hideWarning; commit(); };
+el('btnSoftFocus').onclick = () => { state.softFocus = !state.softFocus; commit(); };
+
+el('rngCheatScale').addEventListener('input', e => {
+  state.cheatScale = Number(e.target.value) / 100;
+  save();
+  el('valCheatScale').textContent = '+' + (e.target.value - 100) + '%';
+  render(new Date());
+});
+el('rngCheatOffset').addEventListener('input', e => {
+  state.cheatOffset = Number(e.target.value);
+  save();
+  el('valCheatOffset').textContent = e.target.value + ' 分钟';
+  courseControlsRender();
+  render(new Date());
+});
 
 el('btnRewind').onclick = () => {
   state.rewind = !state.rewind;
