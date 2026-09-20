@@ -183,6 +183,23 @@
   .drawer-body::-webkit-scrollbar{width:9px}
   .drawer-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.13);border-radius:9px;border:2px solid transparent;background-clip:content-box}
 
+  /* 搜索框 */
+  .msearch{padding:10px 18px 6px;position:sticky;top:0;z-index:2;
+    background:linear-gradient(180deg,#121a2e 72%,rgba(18,26,46,0))}
+  .msearch .tin{width:100%;box-sizing:border-box}
+
+  /* 分组：给平级项分出层次 */
+  .mgroup{margin-bottom:2px}
+  .mgroup-head{padding:12px 18px 8px;font-size:10.5px;font-weight:800;letter-spacing:2px;
+    color:var(--dim2);display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;
+    border-top:1px solid rgba(255,255,255,.07)}
+  .mgroup:first-of-type .mgroup-head{border-top:0}
+  .mgroup-head span{font-size:10.5px;font-weight:500;letter-spacing:0;opacity:.72}
+  .mgroup.hide{display:none}
+  .sec.hide{display:none}
+  .mnone{padding:16px 18px;font-size:12px;color:var(--dim2);text-align:center}
+  .mnone[hidden]{display:none}
+
   /* 折叠分区 */
   .sec{border-bottom:1px solid rgba(255,255,255,.055)}
   .sec-head{
@@ -375,17 +392,29 @@
     <button class="close-x" id="btnClose" title="关闭（Esc）">✕</button>
   </div>
 
-  <div class="drawer-body">
+    <div class="drawer-body">
 
-    <section class="sec" data-key="mode">
-      <button class="sec-head" type="button">进位模式 <span class="caret">▶</span></button>
+    <div class="msearch">
+      <input class="tin" id="menuSearch" type="search" placeholder="搜索设置…（如 锚点 / 字号 / 秒）" spellcheck="false">
+    </div>
+
+      <div class="mgroup" data-group="display carryHow carryAmt hourSys numText rewind">
+        <div class="mgroup-head">时间显示<span>决定中间那个大数字长什么样</span></div>
+    <section class="sec" data-key="display">
+      <button class="sec-head" type="button">主显示方式 <span class="caret">▶</span></button>
       <div class="sec-body">
-        <div class="opts" id="grpMode"></div>
-        <div class="hint" id="modeHint"></div>
+        <div class="opts" id="grpAnchor"></div>
+        <div class="hint" id="anchorHint"></div>
       </div>
     </section>
-
-    <section class="sec" data-key="carry">
+      <section class="sec" data-key="carryHow">
+            <button class="sec-head" type="button">进位算法 <span class="caret">▶</span></button>
+            <div class="sec-body">
+              <div class="opts" id="grpMode"></div>
+              <div class="hint" id="modeHint"></div>
+            </div>
+          </section>
+      <section class="sec" data-key="carryAmt">
       <button class="sec-head" type="button">借位幅度 <span class="caret">▶</span></button>
       <div class="sec-body">
         <div class="field" id="baseScaleNote">往回借几个小时</div>
@@ -393,33 +422,22 @@
         <div class="hint" id="baseHint"></div>
       </div>
     </section>
-
-    <section class="sec" data-key="hour">
-      <button class="sec-head" type="button">时段制 <span class="caret">▶</span></button>
-      <div class="sec-body">
-        <div class="opts" id="grpHour"></div>
-        <div class="hint">24 小时制即原样；12 小时制会折叠出「上午 / 下午」，数字看着更小。</div>
-      </div>
-    </section>
-
-    <section class="sec" data-key="num">
-      <button class="sec-head" type="button">记数文字 <span class="caret">▶</span></button>
-      <div class="sec-body">
-        <div class="opts" id="grpNum"></div>
-        <div class="hint">阿拉伯数字 → 中文小写 → 纯文言。文言模式改用十二时辰 + 刻，并给时辰配上「夜半 / 鸡鸣 / 晡时」这类古称。</div>
-      </div>
-    </section>
-
-    <section class="sec" data-key="anchor">
-      <button class="sec-head" type="button">时间锚点 <span class="caret">▶</span></button>
-      <div class="sec-body">
-        <div class="opts" id="grpAnchor"></div>
-        <div class="hint" id="anchorHint"></div>
-      </div>
-    </section>
-
-    <section class="sec" data-key="cheat">
-      <button class="sec-head" type="button">自欺欺人参数 <span class="caret">▶</span></button>
+      <section class="sec" data-key="hourSys">
+            <button class="sec-head" type="button">时段制 <span class="caret">▶</span></button>
+            <div class="sec-body">
+              <div class="opts" id="grpHour"></div>
+              <div class="hint">24 小时制即原样；12 小时制会折叠出「上午 / 下午」，数字看着更小。</div>
+            </div>
+          </section>
+      <section class="sec" data-key="numText">
+            <button class="sec-head" type="button">记数文字 <span class="caret">▶</span></button>
+            <div class="sec-body">
+              <div class="opts" id="grpNum"></div>
+              <div class="hint">阿拉伯数字 → 中文小写 → 纯文言。文言模式改用十二时辰 + 刻，并给时辰配上「夜半 / 鸡鸣 / 晡时」这类古称。</div>
+            </div>
+          </section>
+      <section class="sec" data-key="rewind">
+      <button class="sec-head" type="button">时光倒流与抹零 <span class="caret">▶</span></button>
       <div class="sec-body">
         <button class="rewind" id="btnRewind">⏪ 开启「还早」模式</button>
         <div class="row" style="margin-top:12px">
@@ -437,33 +455,12 @@
         </div>
         <div class="hint">「时光倒流」最多把表拨慢 <b>4 小时</b>，日期会跟着回退。抹零永远往下抹，绝不往前凑。</div>
       </div>
-    </section>
+    </section></div>
 
-    <section class="sec" data-key="bg">
-      <button class="sec-head" type="button">背景文字 <span class="caret">▶</span></button>
-      <div class="sec-body">
-        <label class="field">滚动文字（一行一句，回车换行成多行）</label>
-        <textarea class="ta" id="fishText" rows="2" spellcheck="false"
-          placeholder="输入你想让背景滚动的文字…"></textarea>
-        <div class="row" style="margin-top:12px">
-          <label>滚动速度</label>
-          <input type="range" id="rngFishSpeed" min="0" max="120" step="1">
-          <span class="val" id="valFishSpeed">60</span>
-        </div>
-        <div class="row" style="margin-top:13px">
-          <label>背景</label>
-          <button class="opt" id="btnFishToggle" style="padding:6px 12px">开启</button>
-        </div>
-        <div class="row">
-          <label>默认语句</label>
-          <button class="opt" id="btnFishFollow" style="padding:6px 12px">跟随锚点</button>
-        </div>
-        <div class="hint">每条文字的字号、纵向位置和速度都是随机的（字号 0.52×～1.30×，不会太离谱）。<b>速度 0 = 静止</b>。</div>
-      </div>
-    </section>
-
+      <div class="mgroup" data-group="events skipdays cheatCtl">
+        <div class="mgroup-head">事件与提醒<span>安排事情，并决定倒计时怎么显示</span></div>
     <section class="sec" data-key="events">
-      <button class="sec-head" type="button">事件提醒 <span class="caret">▶</span></button>
+      <button class="sec-head" type="button">事件列表 <span class="caret">▶</span></button>
       <div class="sec-body">
         <div class="opts" style="margin-bottom:12px">
           <button class="opt primary" type="button" id="btnEventAdd"
@@ -520,57 +517,83 @@
       </div>
     </section>
 
-    <section class="sec" data-key="holiday">
-      <button class="sec-head" type="button">跳过某些天 <span class="caret">▶</span></button>
+      <section class="sec" data-key="skipdays">
+            <button class="sec-head" type="button">跳过某些天 <span class="caret">▶</span></button>
+            <div class="sec-body">
+              <label class="field">选一个日期，标记这天不安排</label>
+              <div class="row">
+                <label>日期</label>
+                <input class="tin" type="date" id="courseDate" style="flex:1">
+              </div>
+              <div id="courseHolidayBox"></div>
+              <div class="hint">标记「放假」的那天，倒计时会直接跳到下一次安排（比如假期里跳过每周重复的课）。</div>
+            </div>
+          </section>
+      <section class="sec" data-key="cheatCtl">
+            <button class="sec-head" type="button">倒计时障眼法 <span class="caret">▶</span></button>
+            <div class="sec-body">
+              <div class="row">
+                <label>偷加时间</label>
+                <button class="opt" id="btnCheatCountdown" style="padding:6px 12px">开启</button>
+              </div>
+              <div class="row">
+                <label>最多多给</label>
+                <input type="range" id="rngCheatScale" min="100" max="200" step="5">
+                <span class="val" id="valCheatScale">+30%</span>
+              </div>
+              <div class="row">
+                <label>假的提前量</label>
+                <input type="range" id="rngCheatOffset" min="0" max="30" step="1">
+                <span class="val" id="valCheatOffset">5 分钟</span>
+              </div>
+              <div class="row">
+                <label>上课时间</label>
+                <button class="opt" id="btnHideExact" style="padding:6px 12px">显示</button>
+              </div>
+              <div class="row">
+                <label>迟到提醒</label>
+                <button class="opt" id="btnHideWarning" style="padding:6px 12px">开启</button>
+              </div>
+              <div class="row">
+                <label>模糊背景</label>
+                <button class="opt" id="btnSoftFocus" style="padding:6px 12px">关闭</button>
+              </div>
+              <div class="hint">
+                · <b>偷加时间</b>：倒计时里偷偷多显示一点，且每帧微抖 —— 看着一直在"多出来"。<br>
+                · <b>假的提前量</b>：把表上的课往后挪，于是你以为还早。<br>
+                · 剩余 <b>≤ 1 小时</b>自动切成<b>秒</b>显示：3600 就是比「1 小时」经用。
+              </div>
+            </div>
+          </section>
+      </div>
+
+      <div class="mgroup" data-group="bg">
+        <div class="mgroup-head">背景<span>底部那层滚动的文字</span></div>
+    <section class="sec" data-key="bg">
+      <button class="sec-head" type="button">背景滚动文字 <span class="caret">▶</span></button>
       <div class="sec-body">
-        <label class="field">选一个日期，标记这天不安排</label>
-        <div class="row">
-          <label>日期</label>
-          <input class="tin" type="date" id="courseDate" style="flex:1">
+        <label class="field">滚动文字（一行一句，回车换行成多行）</label>
+        <textarea class="ta" id="fishText" rows="2" spellcheck="false"
+          placeholder="输入你想让背景滚动的文字…"></textarea>
+        <div class="row" style="margin-top:12px">
+          <label>滚动速度</label>
+          <input type="range" id="rngFishSpeed" min="0" max="120" step="1">
+          <span class="val" id="valFishSpeed">60</span>
         </div>
-        <div id="courseHolidayBox"></div>
-        <div class="hint">标记「放假」的那天，倒计时会直接跳到下一次安排（比如假期里跳过每周重复的课）。</div>
+        <div class="row" style="margin-top:13px">
+          <label>背景</label>
+          <button class="opt" id="btnFishToggle" style="padding:6px 12px">开启</button>
+        </div>
+        <div class="row">
+          <label>默认语句</label>
+          <button class="opt" id="btnFishFollow" style="padding:6px 12px">跟随锚点</button>
+        </div>
+        <div class="hint">每条文字的字号、纵向位置和速度都是随机的（字号 0.52×～1.30×，不会太离谱）。<b>速度 0 = 静止</b>。</div>
       </div>
     </section>
-
-    <section class="sec" data-key="cheat2">
-      <button class="sec-head" type="button">倒计时障眼法 <span class="caret">▶</span></button>
-      <div class="sec-body">
-        <div class="row">
-          <label>偷加时间</label>
-          <button class="opt" id="btnCheatCountdown" style="padding:6px 12px">开启</button>
-        </div>
-        <div class="row">
-          <label>最多多给</label>
-          <input type="range" id="rngCheatScale" min="100" max="200" step="5">
-          <span class="val" id="valCheatScale">+30%</span>
-        </div>
-        <div class="row">
-          <label>假的提前量</label>
-          <input type="range" id="rngCheatOffset" min="0" max="30" step="1">
-          <span class="val" id="valCheatOffset">5 分钟</span>
-        </div>
-        <div class="row">
-          <label>上课时间</label>
-          <button class="opt" id="btnHideExact" style="padding:6px 12px">显示</button>
-        </div>
-        <div class="row">
-          <label>迟到提醒</label>
-          <button class="opt" id="btnHideWarning" style="padding:6px 12px">开启</button>
-        </div>
-        <div class="row">
-          <label>模糊背景</label>
-          <button class="opt" id="btnSoftFocus" style="padding:6px 12px">关闭</button>
-        </div>
-        <div class="hint">
-          · <b>偷加时间</b>：倒计时里偷偷多显示一点，且每帧微抖 —— 看着一直在"多出来"。<br>
-          · <b>假的提前量</b>：把表上的课往后挪，于是你以为还早。<br>
-          · 剩余 <b>≤ 1 小时</b>自动切成<b>秒</b>显示：3600 就是比「1 小时」经用。
-        </div>
       </div>
-    </section>
 
-  </div>
+</div>
 
   <div class="drawer-foot">
     <button id="btnReset">↺ 恢复默认</button>
@@ -1639,19 +1662,73 @@ function saveSections(obj){
 }
 
 const secState = loadSections();
-// 默认：前两组展开，其余收起 —— 一进来看得懂，又不至于一屏全是按钮
-const DEFAULT_OPEN = { mode:true, carry:true, hour:false, num:false, anchor:false, cheat:false, bg:false };
-document.querySelectorAll('.sec').forEach(sec => {
+// 默认：每个分组各开一个最常用的 —— 一进来看得懂，又不至于一屏全是按钮
+const DEFAULT_OPEN = { display:true, carryHow:false, carryAmt:false, hourSys:false,
+                        numText:false, rewind:false,
+                        events:true, skipdays:false, cheatCtl:false,
+                        bg:false };
+
+const allSecs = [...document.querySelectorAll('.drawer-body .sec')];
+
+// 手风琴：同时只展开一个分区，抽屉不会又长又乱
+function openOnly(sec){
+  allSecs.forEach(s => s.classList.toggle('open', s === sec));
+}
+
+allSecs.forEach(sec => {
   const key = sec.dataset.key;
-  const open = secState[key] !== undefined ? !!secState[key] : !!DEFAULT_OPEN[key];
-  sec.classList.toggle('open', open);
+  if(secState[key]) sec.classList.add('open');
+  else if(secState[key] === undefined && DEFAULT_OPEN[key]) sec.classList.add('open');
+
   const head = sec.querySelector('.sec-head');
   if(head) head.onclick = () => {
-    const on = !sec.classList.contains('open');
-    sec.classList.toggle('open', on);
-    secState[key] = on;
+    const wasOpen = sec.classList.contains('open');
+    if(wasOpen){ sec.classList.remove('open'); secState[key] = false; }
+    else { openOnly(sec); secState[key] = true; }
     saveSections(secState);
   };
+});
+
+/* ---------------- 菜单搜索 ---------------- */
+
+// 每个分区补一份可搜文本（标题 + 里面的标签文字）
+allSecs.forEach(sec => {
+  const txt = sec.textContent.replace(/\s+/g, ' ') + ' ' + (sec.dataset.key || '');
+  sec.dataset.search = txt.toLowerCase();
+});
+
+const noHit = document.createElement('div');
+noHit.className = 'mnone';
+noHit.id = 'menuNoHit';
+noHit.hidden = true;
+noHit.textContent = '没有匹配的设置 —— 换个词试试';
+el('drawer').querySelector('.drawer-body').appendChild(noHit);
+
+function menuFilter(q){
+  q = String(q || '').trim().toLowerCase();
+  const noHitEl = el('menuNoHit');
+  if(!q){
+    allSecs.forEach(s => s.classList.remove('hide'));
+    document.querySelectorAll('.mgroup').forEach(g => g.classList.remove('hide'));
+    noHitEl.hidden = true;
+    return;
+  }
+  let hits = 0;
+  allSecs.forEach(sec => {
+    const hit = (sec.dataset.search || '').includes(q);
+    sec.classList.toggle('hide', !hit);
+    if(hit){ hits++; sec.classList.add('open'); }     // 命中的直接展开
+  });
+  document.querySelectorAll('.mgroup').forEach(g => {
+    const any = [...g.querySelectorAll('.sec')].some(s => !s.classList.contains('hide'));
+    g.classList.toggle('hide', !any);
+  });
+  noHitEl.hidden = hits > 0;
+}
+
+el('menuSearch').addEventListener('input', e => menuFilter(e.target.value));
+el('menuSearch').addEventListener('keydown', e => {
+  if(e.key === 'Escape'){ e.target.value = ''; menuFilter(''); e.target.blur(); }
 });
 
 function setDrawer(open){
@@ -2012,7 +2089,26 @@ el('btnHelp').onclick = () => {
   alert(
 `自欺欺人时钟 · 说明
 
-【进位模式】两套造假引擎
+设置面板按三组分类，顶上还能直接搜（试试搜「秒」或「锚点」）：
+
+【时间显示】决定中间那个大数字长什么样
+  · 主显示方式 —— 最重要的一项，决定拿哪个时刻来显示
+  · 进位算法 / 借位幅度 —— 数字怎么换算
+  · 时段制 —— 24 小时制 / 12 小时制
+  · 记数文字 —— 阿拉伯数字 / 中文 / 文言
+  · 时光倒流与抹零 —— 把表拨慢、把秒抹掉
+
+【事件与提醒】安排事情，并决定倒计时怎么显示
+  · 事件列表 —— 加课、加会议、加任何「时间 + 什么事 + 地点」
+  · 跳过某些天 —— 假期里跳过每周重复的安排
+  · 倒计时障眼法 —— 偷加时间、假提前量、藏起时间、模糊背景
+
+【背景】底部那层滚动的文字
+  · 背景滚动文字 —— 内容、速度、开关、是否跟随锚点
+
+分区点一下展开、再点收起，同时只展开一个。
+
+【进位算法】两套造假引擎
   甲 · 规范进位
     真实分钟按「每 100 分钟记 1」规范化。
     19:40 → 11:80（hi×100 + lo = 真实分钟）。
