@@ -228,6 +228,27 @@
   .widtab.on{color:#0a0f1c;background:linear-gradient(180deg,#7ea6ff,#5b8cff);font-weight:700}
   .widrow{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;width:100%;margin-top:8px}
 
+  /* 主页鱼缸 */
+  .fishtank{display:flex;align-items:center;gap:10px;margin:12px auto 0;
+    max-width:640px;width:100%;padding:8px 14px;border-radius:14px;
+    background:rgba(61,220,151,.07);border:1px solid rgba(61,220,151,.22);min-height:38px}
+  .fishtank[hidden]{display:none}
+  .ft-label{font-size:10.5px;font-weight:800;letter-spacing:2px;color:#3ddc97;
+    flex-shrink:0;opacity:.85}
+  .ft-fish{display:flex;flex-wrap:wrap;gap:3px;flex:1;min-width:0;line-height:1}
+  .ft-fish .f{font-size:17px;display:inline-block;
+    animation:swim 3.2s ease-in-out infinite}
+  .ft-fish .f:nth-child(2n){animation-duration:3.9s}
+  .ft-fish .f:nth-child(3n){animation-duration:2.7s}
+  .ft-fish .f:nth-child(5n){animation-delay:-1.1s}
+  .ft-fish .ft-empty{font-size:11px;color:var(--dim2)}
+  .ft-title{font-size:11px;font-weight:700;color:#3ddc97;flex-shrink:0;white-space:nowrap}
+  @media(max-width:640px){
+    .fishtank{padding:7px 11px;gap:8px}
+    .ft-fish .f{font-size:15px}
+    .ft-title{display:none}
+  }
+
   /* 假进度条 */
   .fakebar{display:flex;align-items:center;gap:9px;margin:10px auto 2px;
     max-width:520px;width:100%;padding:7px 12px;border-radius:999px;
@@ -491,6 +512,12 @@
       <div class="clock" id="clock" aria-live="off"></div>
     </div>
     <div class="widbar" id="widBar"></div>
+
+    <div class="fishtank" id="fishStripBox" hidden>
+      <span class="ft-label">鱼缸</span>
+      <span class="ft-fish" id="fishStrip"></span>
+      <span class="ft-title" id="fishStripTitle"></span>
+    </div>
 
     <div class="fakebar" id="fakeBarWrap" hidden>
       <span class="fb-label">同步中</span>
@@ -2190,6 +2217,8 @@ function statRender(){
     }
   }
 
+  fishStripRender();
+
   // 算法切换按钮与说明（抽屉收起时也要更新，所以放在 if(tank) 外面）
   {
     const isLie = state.fishMode === 'lie';
@@ -2541,6 +2570,51 @@ function termsRender(){
 }
 
 /* ---- 假进度条 ---- */
+/* ---- 主页鱼缸：把每条鱼都画出来 ---- */
+function fishStripRender(){
+  const box = el('fishStripBox');
+  if(!box) return;
+  const on = state.widOn || {};
+  if(on.fish === false){ box.hidden = true; return; }
+
+  const s = todayStats();
+  const n = fishCount(s.elapsed);
+  box.hidden = false;
+
+  const strip = el('fishStrip');
+  // 只在数量变化时重画，避免每帧重建 DOM 把动画打断
+  if(strip.dataset.n !== String(n)){
+    strip.dataset.n = String(n);
+    strip.innerHTML = '';
+    if(n <= 0){
+      const e = document.createElement('span');
+      e.className = 'ft-empty';
+      e.textContent = state.fishMode === 'lie'
+        ? '还空着 —— 累计改动满 20 分钟就有第一条'
+        : '还空着 —— 待够 20 分钟就有第一条';
+      strip.appendChild(e);
+    }else{
+      for(let i = 0; i < n; i++){
+        const f = document.createElement('span');
+        f.className = 'f';
+        f.textContent = i % 5 === 4 ? '🐠' : '🐟';
+        strip.appendChild(f);
+      }
+    }
+  }
+
+  const t = el('fishStripTitle');
+  if(t){
+    const need = fishNeed(s.elapsed);
+    t.textContent = n > 0
+      ? (fishTitle(n) || '') + (n < 24 ? ' · 再' + need.label + ' ' + need.left + ' ' + need.unit : '')
+      : '';
+  }
+  box.title = state.fishMode === 'lie'
+    ? '按累计改动算：已累计 ' + lieMinNow() + ' 分钟'
+    : '按在页面时间算：' + fmtDur(s.elapsed);
+}
+
 function fakeBarRender(){
   const wrap = el('fakeBarWrap');
   if(!wrap) return;
@@ -2756,6 +2830,7 @@ function widRender(){
   fakeBarRender();
   onlineRender();
   termsRender();
+  fishStripRender();
 }
 
 /* ---- 通知模拟器 ---- */
