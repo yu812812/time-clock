@@ -238,6 +238,32 @@
   .tin:focus{border-color:rgba(91,140,255,.6);background:rgba(0,0,0,.45)}
   .tin::placeholder{color:var(--dim2)}
 
+  /* ---------- 事件列表 ---------- */
+  .elist{display:flex;flex-direction:column;gap:7px}
+  .eitem{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:11px;
+    background:rgba(91,140,255,.09);border:1px solid rgba(91,140,255,.24);
+    cursor:pointer;transition:.15s}
+  .eitem:hover{background:rgba(91,140,255,.17);border-color:rgba(91,140,255,.45)}
+  .eleft{flex:0 0 78px;min-width:0}
+  .eitem .etime{font-size:12.5px;font-weight:700;color:#9db8ff;font-variant-numeric:tabular-nums}
+  .eitem .ewhen{font-size:10.5px;color:var(--dim2);margin-top:2px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .emid{flex:1;min-width:0}
+  .eitem .etitle{font-size:13px;font-weight:600;color:var(--text);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .eitem .eplace{font-size:11px;color:var(--dim);margin-top:2px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .eright{display:flex;align-items:center;gap:7px;flex-shrink:0}
+  .eitem .ecount{font-size:11.5px;font-weight:700;color:#3ddc97;
+    font-variant-numeric:tabular-nums;white-space:nowrap}
+  .eitem .edel{border:0;background:transparent;color:var(--dim2);font-size:12px;
+    padding:0 2px;cursor:pointer;line-height:1}
+  .eitem .edel:hover{color:#ff7a7a}
+
+  .eeform{margin-bottom:13px;padding:12px;border:1px solid rgba(91,140,255,.3);
+    border-radius:11px;background:rgba(91,140,255,.07)}
+  .eeform[hidden]{display:none}
+
   /* 模糊背景（自欺欺人的一层） */
   body.soft-focus .fisheye{filter:blur(6px);opacity:.7}
   body.soft-focus .soothe,
@@ -436,47 +462,74 @@
       </div>
     </section>
 
-    <section class="sec" data-key="course">
-      <button class="sec-head" type="button">课表 <span class="caret">▶</span></button>
+    <section class="sec" data-key="events">
+      <button class="sec-head" type="button">事件提醒 <span class="caret">▶</span></button>
       <div class="sec-body">
-        <label class="field">点课程卡片可以改，点「＋ 加一节」新增</label>
-        <div class="cgrid" id="courseGrid"></div>
-        <div class="ceform" id="ceForm" hidden>
-          <div class="cehead" id="ceTitle">新增</div>
+        <div class="opts" style="margin-bottom:12px">
+          <button class="opt primary" type="button" id="btnEventAdd"
+            style="padding:8px 14px"><span class="k">＋ 添加事件</span></button>
+        </div>
+
+        <div class="eeform" id="eeForm" hidden>
+          <div class="cehead" id="eeTitle">添加事件</div>
+
+          <div class="row">
+            <label>重复</label>
+            <span class="opts" style="gap:6px">
+              <button class="opt" type="button" id="eeRepeatOnce" style="padding:6px 12px"><span class="k">就一次</span></button>
+              <button class="opt" type="button" id="eeRepeatWeekly" style="padding:6px 12px"><span class="k">每周重复</span></button>
+            </span>
+          </div>
+
+          <div class="row">
+            <label id="eeDateLabel">日期</label>
+            <input class="tin" type="date" id="eeDate" style="flex:1">
+          </div>
+
+          <div class="row" id="eeDaysRow" hidden>
+            <label>星期</label>
+            <span class="opts" style="gap:5px" id="eeDays"></span>
+          </div>
+
           <div class="row">
             <label>时间</label>
-            <input class="tin" id="ceStart" placeholder="08:00" style="width:74px">
+            <input class="tin" id="eeStart" placeholder="08:00" style="width:74px">
             <span style="color:var(--dim2)">—</span>
-            <input class="tin" id="ceEnd" placeholder="09:40" style="width:74px">
+            <input class="tin" id="eeEnd" placeholder="09:40" style="width:74px">
           </div>
+
           <div class="row">
-            <label>课程</label>
-            <input class="tin" id="ceName" placeholder="高等数学" style="flex:1">
+            <label>什么事</label>
+            <input class="tin" id="eeName" placeholder="高等数学 / 开会 / 取快递" style="flex:1">
           </div>
+
           <div class="row">
-            <label>教室</label>
-            <input class="tin" id="ceRoom" placeholder="A301" style="flex:1">
+            <label>地点</label>
+            <input class="tin" id="eePlace" placeholder="A301（可留空）" style="flex:1">
           </div>
-          <div class="ceerr" id="ceErr"></div>
+
+          <div class="ceerr" id="eeErr"></div>
           <div class="opts" style="margin-top:11px">
-            <button class="opt" type="button" id="ceSave"><span class="k">保存</span></button>
-            <button class="opt" type="button" id="ceCancel"><span class="k">取消</span></button>
+            <button class="opt" type="button" id="eeSave"><span class="k">保存</span></button>
+            <button class="opt" type="button" id="eeCancel"><span class="k">取消</span></button>
           </div>
         </div>
-        <div class="hint" id="courseControls"></div>
+
+        <div class="elist" id="eventList"></div>
+        <div class="hint" id="eventControls"></div>
       </div>
     </section>
 
     <section class="sec" data-key="holiday">
-      <button class="sec-head" type="button">放假 / 调休 <span class="caret">▶</span></button>
+      <button class="sec-head" type="button">跳过某些天 <span class="caret">▶</span></button>
       <div class="sec-body">
-        <label class="field">选一个日期，标记放假或调休</label>
+        <label class="field">选一个日期，标记这天不安排</label>
         <div class="row">
           <label>日期</label>
           <input class="tin" type="date" id="courseDate" style="flex:1">
         </div>
         <div id="courseHolidayBox"></div>
-        <div class="hint">放假那天不显示倒计时，自动跳到下一次课；调休则照常算。</div>
+        <div class="hint">标记「放假」的那天，倒计时会直接跳到下一次安排（比如假期里跳过每周重复的课）。</div>
       </div>
     </section>
 
@@ -581,7 +634,7 @@ const ANCHORS = [
     fish:'🙈 真实时间是什么 · 我只看我想看的 · 假的更好 🫣' },
   { id:'dilate',    name:'时间膨胀',   desc:'套用上面的进位引擎',
     fish:'⏳ 时间还早 · 单位都换了，那就不算晚 · 一天有 36 小时 🐳' },
-  { id:'lesson',    name:'下节课',     desc:'还剩多少秒（数字很大）',
+  { id:'lesson',    name:'下一件事',   desc:'还剩多少秒（数字很大）',
     fish:'⏳ 还有时间 · 不慌 · 来得及 · 慢慢来 🐌' },
   { id:'love520',   name:'我爱你',     desc:'距离 5:20 有多远',
     fish:'还在等时间的爱意💖' },
@@ -633,8 +686,10 @@ const DEFAULT_STATE = {
   num:'arabic', offset:0, round:0, rewind:false, anchor:'dilate',
   fishOn:true,
   fishFollow:true,
-  // —— 课表 ——
-  courses: [],                       // 每条：{ id, day:0-6(周一=0), start, end, name, room }
+  // —— 事件提醒 ——
+  // 一次性：{ id, date:'YYYY-MM-DD', start, end, title, place }
+  // 每周重复：{ id, repeat:'weekly', date:'YYYY-MM-DD'(起始日,可空), days:[0..6], start, end, title, place }
+  events: [],
   holidays: {},                      // { 'YYYY-MM-DD': 'off' | 'on' } 放假 / 调休上课
   lessonMsgs: [],                    // 文案池，空则用内置
   cheatCountdown: true,              // 倒计时里偷偷加时间
@@ -840,7 +895,7 @@ function render(now){
 
   /* ---------- 下节课：剩多少秒（数字很大，显得很经用） ---------- */
   if(state.anchor === 'lesson'){
-    const nl = nextLesson(now);
+    const nl = nextEvent(now);
     const cd = countdownOf(nl);
 
     clock.appendChild(numGroup(enc(String(cd.big))));
@@ -849,25 +904,25 @@ function render(now){
     unit.textContent = cd.unit;
     clock.appendChild(unit);
 
-    const line = lessonLine(nl);
+    const line = eventLine(nl);
     renderMeta(sec, extra);
     renderDateLine(line);
 
     if(nl.kind === 'none'){
-      el('soothe').innerHTML = '还没有课表。<em>没排课的日子，天天都是假期。</em>';
+      el('soothe').innerHTML = '还没有安排。<em>没安排的日子，天天都是假期。</em>';
     }else if(nl.kind === 'during'){
       el('soothe').innerHTML = state.hideWarning
-        ? '正在上课，安心待着就好。'
-        : '正在上课 —— 不过<em>' + cd.big + '</em> 秒之后这节课就结束了，也不算太久。';
+        ? '正在进行中，安心待着就好。'
+        : '正在进行 —— 不过<em>' + cd.big + '</em> 秒之后就结束了，也不算太久。';
     }else{
-      const e = nl.entry || {};
+      const e = nl.ev || {};
       const near = (nl.seconds <= 3600);
       el('soothe').innerHTML = state.hideWarning
         ? '还有时间，不慌。'
         : (near
             ? '只剩 <em>' + cd.big + '</em> 秒了 —— 听着很多，其实是 <em>'
               + Math.max(1, Math.round(nl.seconds / 60)) + ' 分钟</em>。（数字大而已）'
-            : '还有 <em>' + cd.big + '</em> ' + cd.unit + ' 才上<em>' + (e.name || '课') + '</em>，慢慢来。');
+            : '还有 <em>' + cd.big + '</em> ' + cd.unit + ' 才到<em>' + (e.title || '这件事') + '</em>，慢慢来。');
     }
     fitClock();
     return;
@@ -1012,15 +1067,17 @@ function renderMeta(sec, extra){
 
   // 「下节课」锚点：显示课程与自欺欺人的说明
   if(state.anchor === 'lesson'){
-    const nl = nextLesson(new Date());
+    const nl = nextEvent(new Date());
     if(nl.kind === 'none'){
-      add('课表是空的', 'warn');
-      add('去设置 → 课表 里加课');
+      add('还没有安排', 'warn');
+      add('去设置 → 事件提醒 里加一件');
       return;
     }
-    const e = nl.entry || {};
-    add((nl.kind === 'during' ? '正在上：' : '下一节：') + '<b>' + (e.name || '未命名') + '</b>', 'warn');
-    if(e.room) add('教室 <b>' + e.room + '</b>');
+    const e = nl.ev || {};
+    add((nl.kind === 'during' ? '正在进行：' : '下一件：') + '<b>' + (e.title || '未命名') + '</b>', 'warn');
+    if(e.place) add('地点 <b>' + e.place + '</b>');
+    if(nl.kind === 'before' && dateKey(nl.date) !== dateKey(new Date()))
+      add(DAY_CN[dayIdx(nl.date)] + ' <b>' + (nl.date.getMonth()+1) + '/' + nl.date.getDate() + '</b>');
     if(!state.hideExactTime){
       add('<b>' + fmtHM(nl.startSec) + '–' + fmtHM(nl.endSec) + '</b>');
       if(Number(state.cheatOffset) > 0)
@@ -1065,16 +1122,17 @@ function renderMeta(sec, extra){
   for(const e of extra) add(e, 'warn');
 }
 
-/* ---------------- 课表 · 下节课倒计时 ---------------- */
-/* 自欺欺人的几层：
+/* ---------------- 事件提醒 · 倒计时 ---------------- */
+/* 一条事件 = 时间 + 什么事 + 地点。
+   支持两种：指定日期的一次性事件，和每周重复（课程就是后者）。
+   自欺欺人的几层：
    1. 剩余 ≤ 60 分钟时切成「秒」显示 —— 3600 看着就是比 1 小时经用
-   2. 随机多显示一点时间（≤ cheatScale），每帧微调，看着一直在"多出来"
-   3. 假的提前量：把表上的上课时间往后挪，于是你以为还早
-   4. 可以藏掉具体时间、藏掉提醒、模糊背景，眼不见心不烦 */
+   2. 随机多显示一点时间（≤ cheatScale），每帧微抖，看着一直在"多出来"
+   3. 假的提前量：把事件的开始时间往后挪，于是你以为还早
+   4. 可以藏掉具体时间、藏掉提醒、模糊背景 */
 
 const DAY_CN = ['周一','周二','周三','周四','周五','周六','周日'];
 
-// 'HH:MM' -> 当天秒数；非法返回 null
 function parseHM(s){
   const m = /^(\d{1,2})\s*[:：]\s*(\d{1,2})$/.exec(String(s == null ? '' : s).trim());
   if(!m) return null;
@@ -1090,70 +1148,84 @@ function nowSec(d){ return d.getHours()*3600 + d.getMinutes()*60 + d.getSeconds(
 function dateKey(d){
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
+function parseDateKey(k){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(k || ''));
+  if(!m) return null;
+  const d = new Date(+m[1], +m[2]-1, +m[3]);
+  return isNaN(d.getTime()) ? null : d;
+}
 // 周一 = 0
 function dayIdx(d){ return (d.getDay() + 6) % 7; }
 
-function courseList(){
-  return Array.isArray(state.courses) ? state.courses : [];
+function eventList(){ return Array.isArray(state.events) ? state.events : []; }
+function isWeekly(e){ return e && e.repeat === 'weekly'; }
+
+/* 某一天有没有这件事；返回该项目或 null */
+function eventOnDay(e, date){
+  if(isWeekly(e)){
+    const days = Array.isArray(e.days) ? e.days : [];
+    if(!days.includes(dayIdx(date))) return null;
+    // 有起始日就要求不早于起始日
+    const from = parseDateKey(e.date);
+    if(from){
+      const a = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const b = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+      if(a < b) return null;
+    }
+    return e;
+  }
+  return dateKey(date) === e.date ? e : null;
 }
 
-// 某天是否上课：调休(on) → 上课；放假(off) → 不上课；否则看是不是排了课
-function dayHasClass(day, d){
-  const k = dateKey(d);
-  const flag = state.holidays && state.holidays[k];
-  if(flag === 'off') return false;
-  if(flag === 'on') return true;
-  return courseList().some(c => c.day === day);
-}
-
-// 找到「下一节课」。返回 { kind:'before'|'during'|'none', entry, startSec, endSec, seconds, date }
-function nextLesson(now){
-  const list = courseList();
+/* 找「下一件事」。now 之后的最近一次；正在进行的也算。
+   返回 { kind:'before'|'during'|'none', ev, startSec, endSec, seconds, date } */
+function nextEvent(now){
+  const list = eventList().filter(e => parseHM(e.start) != null);
   if(!list.length) return { kind:'none' };
 
   const lag = Math.max(0, Number(state.cheatOffset) || 0) * 60;   // 假的提前量
-  const d0 = dayIdx(now), s0 = nowSec(now);
+  const s0 = nowSec(now);
 
-  for(let step = 0; step < 8; step++){
-    const day = (d0 + step) % 7;
-    const dayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + step);
-    const k = dateKey(dayDate);
+  for(let step = 0; step < 400; step++){
+    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + step);
+    const k = dateKey(date);
     const flag = state.holidays && state.holidays[k];
+    if(flag === 'off' && step === 0) continue;      // 今天放假，看后面
 
-    const todays = list.filter(c => c.day === day)
-      .map(c => {
-        const st = parseHM(c.start), en = parseHM(c.end);
-        if(st == null || en == null) return null;
-        // 假的提前量：把课往后挪，于是看着还早
-        return { c, st: st + lag, en: (en > st ? en : st + 45*60) + lag };
-      })
-      .filter(Boolean)
-      .sort((a, b) => a.st - b.st);
-    if(!todays.length) continue;
-
-    // 调休上课但当天没排课 → 跳过（没课就是没课）
-    if(flag === 'off' && step === 0) continue;   // 今天放假，看后面
-
-    for(const t of todays){
-      if(step > 0 || t.st > s0){
-        return { kind:'before', entry:t.c, startSec:t.st, endSec:t.en,
-                 seconds:(step * 86400 + t.st) - s0, date: dayDate, day };
+    let best = null;
+    for(const e of list){
+      if(!eventOnDay(e, date)) continue;
+      const st0 = parseHM(e.start), en0 = parseHM(e.end);
+      const st = st0 + lag;
+      const en = (en0 > st0 ? en0 : st0 + 60*60) + lag;
+      if(step === 0 && s0 >= en) continue;          // 今天已经结束了
+      if(step === 0 && s0 >= st && s0 < en){
+        if(!best || st < best.st) best = { ev:e, st, en };
+      }else if(step > 0 || st > s0){
+        if(!best || st < best.st) best = { ev:e, st, en };
+      }else if(s0 >= st && s0 < en){
+        // 正在进行的优先
+        best = { ev:e, st, en };
+        break;
       }
-      if(s0 >= t.st && s0 < t.en){
-        return { kind:'during', entry:t.c, startSec:t.st, endSec:t.en,
-                 seconds: t.en - s0, date: dayDate, day };
-      }
+    }
+    if(best){
+      const during = (step === 0 && s0 >= best.st && s0 < best.en);
+      const absStart = step * 86400 + best.st;
+      return { kind: during ? 'during' : 'before', ev: best.ev,
+               startSec: best.st, endSec: best.en, date,
+               seconds: during ? (best.en - s0) : (absStart - s0) };
     }
   }
   return { kind:'none' };
 }
 
-// 倒计时显示：大数字 + 单位
+/* 倒计时显示：大数字 + 单位 */
 function countdownOf(nl){
-  if(nl.kind === 'none') return { big:'—', unit:'还没排课' };
+  if(nl.kind === 'none') return { big:'—', unit:'还没有安排' };
   let sec = Math.max(0, Math.floor(nl.seconds));
 
-  // 自欺欺人 ①：偷偷多一点，且每帧微抖，看着一直在"多出来"
+  // 自欺欺人 ①：偷偷多一点，且每帧微抖
   if(state.cheatCountdown !== false && sec > 0){
     const k = Math.max(1, Number(state.cheatScale) || 1.3);
     const jitter = 1 + ((Date.now() / 1000) % 7) / 7 * (k - 1) * 0.35;
@@ -1161,138 +1233,206 @@ function countdownOf(nl){
   }
 
   // 自欺欺人 ②：≤ 60 分钟切成秒 —— 3600 比「1 小时」经用得多
-  if(nl.kind === 'during') return { big:String(sec), unit:'秒后下课', during:true };
-  if(sec <= 3600)         return { big:String(sec), unit:'秒' };
-  if(sec <= 7200)         return { big:String(Math.floor(sec / 60)), unit:'分钟' };
-  // 隔了一两天以上，用时:分就不直观了
+  if(nl.kind === 'during') return { big:String(sec), unit:'秒后结束', during:true };
+  if(sec <= 3600)          return { big:String(sec), unit:'秒' };
+  if(sec <= 7200)          return { big:String(Math.floor(sec / 60)), unit:'分钟' };
   if(sec > 86400){
     const days = Math.floor(sec / 86400);
     const hh = Math.floor(sec % 86400 / 3600);
     const mm = Math.floor(sec % 3600 / 60);
-    return { big:days + ' 天 ' + hh, unit:': ' + String(mm).padStart(2,'0') };
+    const rest = hh > 0 ? hh + ' 小时' : (mm > 0 ? mm + ' 分' : '整');
+    return { big:String(days), unit:'天 ' + rest };
   }
-  return { big:Math.floor(sec/3600) + ':' + String(Math.floor(sec%3600/60)).padStart(2,'0'),
-           unit:'时:分' };
+  return { big:Math.floor(sec/3600) + ':' + String(Math.floor(sec%3600/60)).padStart(2,'0'), unit:'时 分' };
 }
 
-// 课程卡片文案
-function lessonLine(nl){
-  if(nl.kind === 'none') return '还没排课 —— 去设置里把课表填上';
-  const e = nl.entry || {};
+/* 一行摘要文案 */
+function eventLine(nl){
+  if(nl.kind === 'none') return '还没有安排 —— 去设置里加一件事';
+  const e = nl.ev || {};
   const when = state.hideExactTime ? '（时间已藏起来）'
              : fmtHM(nl.startSec) + '–' + fmtHM(nl.endSec);
-  const where = e.room ? ' · ' + e.room : '';
-  const head = nl.kind === 'during' ? '正在上：' : (nl.day === 0 && nl.startSec > nowSec(new Date()) ? '下一节：' : DAY_CN[nl.day] + '：');
-  return head + (e.name || '未命名') + ' ' + when + where;
+  const where = e.place ? ' · ' + e.place : '';
+  const head = nl.kind === 'during' ? '正在进行：' : '下一件：';
+  const dateTxt = (nl.kind === 'before' && dateKey(nl.date) !== dateKey(new Date()))
+                ? DAY_CN[dayIdx(nl.date)] + ' ' : '';
+  return head + (e.title || '未命名') + '  ' + dateTxt + when + where;
 }
 
-/* ---------------- 课表编辑器 ---------------- */
+/* ---------------- 事件列表 ---------------- */
 
-function courseEditorRender(){
-  const grid = el('courseGrid');
-  if(!grid) return;
-  const list = courseList();
-  grid.innerHTML = '';
+function eventWhenText(e){
+  if(isWeekly(e)){
+    const days = (Array.isArray(e.days) ? e.days : []).slice().sort((a,b) => a-b);
+    const d = days.length === 7 ? '每天' : days.map(x => DAY_CN[x]).join(' ');
+    const from = parseDateKey(e.date);
+    return d + (from ? '（自 ' + (from.getMonth()+1) + '/' + from.getDate() + ' 起）' : '');
+  }
+  const d = parseDateKey(e.date);
+  return d ? (d.getMonth()+1) + ' 月 ' + d.getDate() + ' 日' : '（没填日期）';
+}
 
-  for(let day = 0; day < 7; day++){
+function eventListViewRender(){
+  const box = el('eventList');
+  if(!box) return;
+  const list = eventList();
+  box.innerHTML = '';
+
+  if(!list.length){
+    const d = document.createElement('div');
+    d.className = 'hint';
+    d.innerHTML = '还没有安排。点上面的「＋ 添加事件」开始 —— 可以加课、加会议、加任何<b>有时间和地点的事</b>。';
+    box.appendChild(d);
+    return;
+  }
+
+  // 按「下一次发生」排序
+  const now = new Date();
+  const withNext = list.map(e => {
+    const probe = { ...state, events: [e] };
+    let secs = Infinity;
+    try {
+      const save2 = state.events; state.events = [e];
+      const nl = nextEvent(now);
+      state.events = save2;
+      if(nl.kind !== 'none') secs = nl.seconds;
+    } catch(err) {}
+    return { e, secs };
+  }).sort((a, b) => a.secs - b.secs);
+
+  for(const { e, secs } of withNext){
     const row = document.createElement('div');
-    row.className = 'crow';
+    row.className = 'eitem';
 
-    const lab = document.createElement('div');
-    lab.className = 'cday';
-    lab.textContent = DAY_CN[day];
-    row.appendChild(lab);
+    const left = document.createElement('div');
+    left.className = 'eleft';
+    const t1 = document.createElement('div');
+    t1.className = 'etime';
+    t1.textContent = (e.start || '??') + '–' + (e.end || '??');
+    const t2 = document.createElement('div');
+    t2.className = 'ewhen';
+    t2.textContent = eventWhenText(e);
+    left.appendChild(t1); left.appendChild(t2);
 
-    const box = document.createElement('div');
-    box.className = 'citems';
-
-    const mine = list.filter(c => c.day === day)
-      .sort((a, b) => (parseHM(a.start) ?? 0) - (parseHM(b.start) ?? 0));
-
-    for(const c of mine){
-      const item = document.createElement('div');
-      item.className = 'citem';
-      const t = document.createElement('span');
-      t.className = 'ctime';
-      t.textContent = (c.start || '??') + '–' + (c.end || '??');
-      const n = document.createElement('span');
-      n.className = 'cname';
-      n.textContent = c.name || '未命名';
-      item.appendChild(t); item.appendChild(n);
-      if(c.room){
-        const r = document.createElement('span');
-        r.className = 'croom'; r.textContent = c.room;
-        item.appendChild(r);
-      }
-      const del = document.createElement('button');
-      del.className = 'cdel'; del.type = 'button'; del.textContent = '✕';
-      del.title = '删除这节';
-      del.onclick = () => {
-        state.courses = courseList().filter(x => x.id !== c.id);
-        commit();
-      };
-      item.appendChild(del);
-
-      item.onclick = (ev) => {
-        if(ev.target === del) return;
-        courseEditor.open(day, c);
-      };
-      box.appendChild(item);
+    const mid = document.createElement('div');
+    mid.className = 'emid';
+    const ti = document.createElement('div');
+    ti.className = 'etitle';
+    ti.textContent = e.title || '未命名';
+    mid.appendChild(ti);
+    if(e.place){
+      const pl = document.createElement('div');
+      pl.className = 'eplace';
+      pl.textContent = e.place;
+      mid.appendChild(pl);
     }
 
-    const add = document.createElement('button');
-    add.className = 'cadd'; add.type = 'button'; add.textContent = '＋ 加一节';
-    add.onclick = () => courseEditor.open(day, null);
-    box.appendChild(add);
+    const right = document.createElement('div');
+    right.className = 'eright';
+    const cnt = document.createElement('div');
+    cnt.className = 'ecount';
+    cnt.textContent = secs === Infinity ? '已过期'
+                    : (secs <= 3600 ? Math.floor(secs) + ' 秒' : (secs <= 7200 ? Math.floor(secs/60) + ' 分' : Math.floor(secs/3600) + ' 小时'));
+    right.appendChild(cnt);
 
-    row.appendChild(box);
-    grid.appendChild(row);
+    const del = document.createElement('button');
+    del.className = 'edel'; del.type = 'button'; del.textContent = '✕'; del.title = '删除';
+    del.onclick = ev => {
+      ev.stopPropagation();
+      state.events = eventList().filter(x => x.id !== e.id);
+      commit();
+    };
+    right.appendChild(del);
+
+    row.appendChild(left); row.appendChild(mid); row.appendChild(right);
+    row.onclick = ev => { if(ev.target !== del) eventEditor.open(e); };
+    box.appendChild(row);
   }
 }
 
-let courseEditor = {
-  day: 0, id: null,
-  open(day, c){
-    this.day = day;
-    this.id = c ? c.id : null;
-    el('ceTitle').textContent = DAY_CN[day] + (c ? ' · 修改' : ' · 新增');
-    el('ceStart').value = c ? (c.start || '') : '';
-    el('ceEnd').value   = c ? (c.end || '') : '';
-    el('ceName').value  = c ? (c.name || '') : '';
-    el('ceRoom').value  = c ? (c.room || '') : '';
-    el('ceErr').textContent = '';
-    el('ceForm').hidden = false;
-    el('ceStart').focus();
-  },
-  close(){ el('ceForm').hidden = true; this.id = null; },
-  save(){
-    const st = parseHM(el('ceStart').value), en = parseHM(el('ceEnd').value);
-    const name = el('ceName').value.trim();
-    if(st == null){ el('ceErr').textContent = '开始时间要写成 08:00 这样'; return; }
-    if(en == null){ el('ceErr').textContent = '结束时间要写成 09:40 这样'; return; }
-    if(en <= st){ el('ceErr').textContent = '结束时间要比开始时间晚'; return; }
-    if(!name){ el('ceErr').textContent = '课程名不能空着'; return; }
+let eventEditor = {
+  id: null,
+  mode: 'once',        // 'once' | 'weekly'
+  picks: {},           // 周一~周日，0..6
+  open(e){
+    this.id = e ? e.id : null;
+    this.mode = e && isWeekly(e) ? 'weekly' : 'once';
+    this.picks = {};
+    if(this.mode === 'weekly' && Array.isArray(e.days)) e.days.forEach(d => this.picks[d] = true);
 
-    const rec = { id: this.id || ('c' + Date.now() + Math.floor(Math.random()*1000)),
-                  day:this.day, start:el('ceStart').value.trim(), end:el('ceEnd').value.trim(),
-                  name, room: el('ceRoom').value.trim() };
-    const list = courseList().slice();
-    const i = list.findIndex(x => x.id === rec.id);
-    if(i >= 0) list[i] = rec; else list.push(rec);
-    state.courses = list;
+    el('eeTitle').textContent = (e ? '编辑事件' : '添加事件');
+    el('eeDate').value = e ? (e.date || '') : dateKey(new Date());
+    el('eeStart').value = e ? (e.start || '') : '';
+    el('eeEnd').value   = e ? (e.end || '') : '';
+    el('eeName').value  = e ? (e.title || '') : '';
+    el('eePlace').value = e ? (e.place || '') : '';
+    el('eeErr').textContent = '';
+    el('eeForm').hidden = false;
+    this.sync();
+    el('eeName').focus();
+  },
+  close(){ el('eeForm').hidden = true; this.id = null; },
+  pickDay(d){
+    if(this.mode === 'once') return;
+    if(this.picks[d]) delete this.picks[d]; else this.picks[d] = true;
+    this.sync();
+  },
+  sync(){
+    const weekly = this.mode === 'weekly';
+    el('eeRepeatOnce').classList.toggle('on', !weekly);
+    el('eeRepeatWeekly').classList.toggle('on', weekly);
+    el('eeDateLabel').textContent = weekly ? '从哪天开始' : '日期';
+    el('eeDate').type = weekly ? 'date' : 'date';
+    el('eeDaysRow').hidden = !weekly;
+    el('eeDaysRow').querySelectorAll('button').forEach(b => {
+      b.classList.toggle('on', !!this.picks[+b.dataset.day]);
+    });
+  },
+  save(){
+    const start = parseHM(el('eeStart').value);
+    const end   = parseHM(el('eeEnd').value);
+    const title = el('eeName').value.trim();
+    if(start == null){ el('eeErr').textContent = '开始时间要写成 08:00 这样'; return; }
+    if(end == null){ el('eeErr').textContent = '结束时间要写成 09:40 这样'; return; }
+    if(end <= start){ el('eeErr').textContent = '结束时间要比开始时间晚'; return; }
+    if(!title){ el('eeErr').textContent = '「什么事」不能空着'; return; }
+
+    const weekly = this.mode === 'weekly';
+    const days = Object.keys(this.picks).map(Number).sort((a,b) => a-b);
+    if(weekly && !days.length){ el('eeErr').textContent = '每周重复至少要选一天'; return; }
+    const dk = el('eeDate').value;
+    if(!weekly && !dk){ el('eeErr').textContent = '要选一个日期'; return; }
+
+    const rec = { id: this.id || ('e' + Date.now() + Math.floor(Math.random()*1000)),
+                  start: el('eeStart').value.trim(), end: el('eeEnd').value.trim(),
+                  title, place: el('eePlace').value.trim() };
+    if(weekly){ rec.repeat = 'weekly'; rec.days = days; if(dk) rec.date = dk; }
+    else { rec.date = dk; }
+
+    const list = eventList().slice();
+    const k = list.findIndex(x => x.id === rec.id);
+    if(k >= 0) list[k] = rec; else list.push(rec);
+    state.events = list;
     this.close();
     commit();
   }
 };
 
-/* ---------------- 控制面板 ---------------- */
+function eventControlsRender(){
+  const box = el('eventControls');
+  if(!box) return;
+  const list = eventList();
+  const weekly = list.filter(isWeekly).length;
+  box.innerHTML = '共 <b>' + list.length + '</b> 件事（<b>' + weekly + '</b> 件每周重复）。'
+    + '倒计时按<b>假的提前量</b>把它们往后挪 <b>' + (Number(state.cheatOffset) || 0) + '</b> 分钟，'
+    + '所以永远显得还早。';
+}
 
-function courseHolidayRender(){
+function eventHolidayRender(){
   const box = el('courseHolidayBox');
   const dateEl = el('courseDate');
   if(!box || !dateEl) return;
   if(!dateEl.value) dateEl.value = dateKey(new Date());
-
   box.innerHTML = '';
   const dk = dateEl.value;
   const flag = (state.holidays || {})[dk] || '';
@@ -1300,7 +1440,7 @@ function courseHolidayRender(){
   const row = document.createElement('div');
   row.className = 'opts';
   row.style.marginTop = '10px';
-  for(const [val, label] of [['', '正常上课'], ['off', '放假不上课'], ['on', '调休要上课']]){
+  for(const [val, label] of [['', '正常'], ['off', '放假（跳过）'], ['on', '照常']]){
     const b = document.createElement('button');
     b.className = 'opt' + (flag === val ? ' on' : '');
     b.type = 'button';
@@ -1319,23 +1459,12 @@ function courseHolidayRender(){
   const info = document.createElement('div');
   info.className = 'hint';
   info.innerHTML = special.length
-    ? '已设置 ' + special.length + ' 个特殊日期：<br>'
-      + special.map(([k, v]) => k + ' ' + (v === 'off' ? '放假' : '调休')).join('、')
-    : '还没有设置放假日或调休日。';
+    ? '已跳过 ' + special.length + ' 天：' + special.map(([k, v]) => k + (v === 'off' ? '放假' : '照常')).join('、')
+    : '还没有设置要跳过的日期。';
   box.appendChild(info);
 }
 
-function courseControlsRender(){
-  const box = el('courseControls');
-  if(!box) return;
-  const list = courseList();
-  box.innerHTML = '已排 <b>' + list.length + '</b> 节课。倒计时按<b>假的提前量</b>把课往后挪 <b>'
-    + (Number(state.cheatOffset) || 0) + '</b> 分钟，所以永远显得还早。'
-    + (list.length ? '' : '<br>还没排课 —— 点上面的「＋ 加一节」开始。');
-}
-
 function courseCheatRender(){
-  // 开关类
   const on = el('btnCheatCountdown');
   on.textContent = state.cheatCountdown !== false ? '开启' : '关闭';
   on.classList.toggle('on', state.cheatCountdown !== false);
@@ -1353,7 +1482,6 @@ function courseCheatRender(){
   el('valCheatScale').textContent = '+' + Math.round(((Number(state.cheatScale) || 1.3) - 1) * 100) + '%';
   el('rngCheatOffset').value = Number(state.cheatOffset) || 0;
   el('valCheatOffset').textContent = (Number(state.cheatOffset) || 0) + ' 分钟';
-
   document.body.classList.toggle('soft-focus', !!state.softFocus);
 }
 
@@ -1490,10 +1618,10 @@ function renderControls(){
   ff.textContent = state.fishFollow !== false ? '跟随锚点' : '自定义';
   ff.classList.toggle('on', state.fishFollow !== false);
 
-  // 课表相关
-  courseEditorRender();
-  courseHolidayRender();
-  courseControlsRender();
+  // 事件提醒相关
+  eventListViewRender();
+  eventControlsRender();
+  eventHolidayRender();
   courseCheatRender();
 }
 
@@ -1815,17 +1943,37 @@ el('btnFishFollow').onclick = () => {
   renderControls();
 };
 
-/* ---------------- 课表：事件 ---------------- */
+/* ---------------- 事件提醒：事件 ---------------- */
 
-el('ceSave').onclick = () => courseEditor.save();
-el('ceCancel').onclick = () => courseEditor.close();
-['ceStart','ceEnd','ceName','ceRoom'].forEach(id => {
+// 星期按钮
+(function buildDayButtons(){
+  const box = el('eeDays');
+  if(!box) return;
+  box.innerHTML = '';
+  for(let d = 0; d < 7; d++){
+    const b = document.createElement('button');
+    b.className = 'opt';
+    b.type = 'button';
+    b.dataset.day = String(d);
+    b.style.padding = '6px 9px';
+    b.innerHTML = '<span class="k">' + DAY_CN[d].slice(1) + '</span>';
+    b.onclick = () => eventEditor.pickDay(d);
+    box.appendChild(b);
+  }
+})();
+
+el('btnEventAdd').onclick = () => eventEditor.open(null);
+el('eeRepeatOnce').onclick = () => { eventEditor.mode = 'once'; eventEditor.sync(); };
+el('eeRepeatWeekly').onclick = () => { eventEditor.mode = 'weekly'; eventEditor.sync(); };
+el('eeSave').onclick = () => eventEditor.save();
+el('eeCancel').onclick = () => eventEditor.close();
+['eeStart','eeEnd','eeName','eePlace'].forEach(id => {
   el(id).addEventListener('keydown', e => {
-    if(e.key === 'Enter'){ e.preventDefault(); courseEditor.save(); }
-    if(e.key === 'Escape'){ courseEditor.close(); }
+    if(e.key === 'Enter'){ e.preventDefault(); eventEditor.save(); }
+    if(e.key === 'Escape'){ eventEditor.close(); }
   });
 });
-el('courseDate').addEventListener('change', () => courseHolidayRender());
+el('courseDate').addEventListener('change', () => eventHolidayRender());
 
 el('btnCheatCountdown').onclick = () => {
   state.cheatCountdown = state.cheatCountdown === false;
